@@ -25,6 +25,7 @@ class EspIrMqttCard extends HTMLElement {
       ...config,
     };
     this._pendingDelete = null;
+    this._expandedYamlKey = null;
     if (!this.shadowRoot) {
       this.attachShadow({ mode: "open" });
     }
@@ -123,19 +124,26 @@ class EspIrMqttCard extends HTMLElement {
     this._render();
   }
 
-  async _copyAutomationYaml(name) {
-    const yaml = `alias: 红外按键 - ${name}
+  _buildAutomationYaml(name) {
+    return `alias: 红外按键 - ${name}
 sequence:
   - service: mqtt.publish
     data:
       topic: ${this._config.topic_prefix}/send/named
       payload: "${name}"
 mode: single`;
+  }
+
+  async _copyAutomationYaml(name) {
+    const yaml = this._buildAutomationYaml(name);
     try {
       await navigator.clipboard.writeText(yaml);
+      this._expandedYamlKey = null;
       this._toast(`已复制 ${name} 的自动化示例`);
     } catch (_err) {
-      this._toast("复制失败，请检查浏览器剪贴板权限");
+      this._expandedYamlKey = this._expandedYamlKey === name ? null : name;
+      this._toast("自动复制失败，已展开文本，可手动复制");
+      this._render();
     }
   }
 
@@ -329,6 +337,33 @@ mode: single`;
           color: #1d4ed8;
           border: 1px solid rgba(29, 78, 216, 0.14);
         }
+        .yaml-box {
+          margin-top: 8px;
+          padding: 12px;
+          border-radius: 14px;
+          background: #f8fafc;
+          border: 1px solid rgba(15, 23, 42, 0.08);
+        }
+        .yaml-title {
+          font-size: 0.84rem;
+          font-weight: 700;
+          color: var(--esp-ir-text);
+          margin-bottom: 8px;
+        }
+        textarea {
+          width: 100%;
+          min-height: 140px;
+          box-sizing: border-box;
+          border: 1px solid rgba(22, 51, 49, 0.12);
+          border-radius: 12px;
+          padding: 12px;
+          resize: vertical;
+          font-family: Consolas, "Courier New", monospace;
+          font-size: 0.82rem;
+          line-height: 1.5;
+          background: white;
+          color: var(--esp-ir-text);
+        }
         .empty {
           padding: 24px 14px;
           text-align: center;
@@ -394,6 +429,8 @@ mode: single`;
                 ? keys
                     .map((key) => {
                       const confirming = this._pendingDelete === key;
+                      const expanded = this._expandedYamlKey === key;
+                      const yaml = this._buildAutomationYaml(key);
                       return `
                         <div class="key">
                           <div class="key-name">${key}</div>
@@ -410,6 +447,14 @@ mode: single`;
                                 : `<button class="delete delete-btn" data-key="${key}">删除</button>`
                             }
                           </div>
+                          ${
+                            expanded
+                              ? `<div class="yaml-box">
+                                  <div class="yaml-title">自动化 YAML 示例，请手动复制</div>
+                                  <textarea readonly>${yaml}</textarea>
+                                </div>`
+                              : ``
+                          }
                         </div>
                       `;
                     })
