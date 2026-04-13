@@ -21,6 +21,7 @@ class EspIrMqttCard extends HTMLElement {
     this._config = {
       title: "红外按键面板",
       columns: 3,
+      default_example_name: "test_ir",
       ...config,
     };
     this._pendingDelete = null;
@@ -146,6 +147,10 @@ class EspIrMqttCard extends HTMLElement {
     const keys = this._extractKeys(stateObj);
     const columns = Math.max(1, Number(this._config.columns) || 3);
     const entityState = stateObj ? stateObj.state : "unavailable";
+    const exampleName = this._config.default_example_name || "test_ir";
+    const sendNamedTopic = `${this._config.topic_prefix}/send/named`;
+    const saveAsTopic = `${this._config.topic_prefix}/save_as`;
+    const deleteTopic = `${this._config.topic_prefix}/delete`;
 
     this.shadowRoot.innerHTML = `
       <style>
@@ -198,6 +203,29 @@ class EspIrMqttCard extends HTMLElement {
           grid-template-columns: 1.6fr auto auto;
           gap: 10px;
           margin-bottom: 18px;
+        }
+        .helper {
+          margin-bottom: 18px;
+          padding: 14px 16px;
+          border-radius: 18px;
+          background: rgba(255,255,255,0.78);
+          border: 1px solid rgba(15, 118, 110, 0.12);
+          color: var(--esp-ir-text);
+          line-height: 1.6;
+        }
+        .helper-title {
+          font-weight: 700;
+          margin-bottom: 8px;
+        }
+        .helper code,
+        .topic code {
+          display: inline-block;
+          padding: 2px 8px;
+          border-radius: 999px;
+          background: rgba(15, 118, 110, 0.08);
+          color: #0f5e57;
+          font-size: 0.84rem;
+          word-break: break-all;
         }
         input {
           width: 100%;
@@ -253,6 +281,12 @@ class EspIrMqttCard extends HTMLElement {
         .key-name {
           font-weight: 700;
           line-height: 1.3;
+          word-break: break-word;
+        }
+        .topic {
+          color: var(--esp-ir-muted);
+          font-size: 0.82rem;
+          line-height: 1.55;
           word-break: break-word;
         }
         .key-actions {
@@ -313,9 +347,17 @@ class EspIrMqttCard extends HTMLElement {
           </div>
 
           <div class="controls">
-            <input id="save-name" placeholder="输入按键名称，例如 空调打开 或 ac_power_on" />
+            <input id="save-name" value="${exampleName}" placeholder="输入按键名称，例如 空调打开 或 ac_power_on" />
             <button class="primary" id="save-btn">一键保存当前学习结果</button>
             <button class="secondary" id="send-last-btn">发送最近学习结果</button>
+          </div>
+
+          <div class="helper">
+            <div class="helper-title">自动化控制说明</div>
+            <div>保存当前学习结果的主题：<code>${saveAsTopic}</code></div>
+            <div>按名字发射的主题：<code>${sendNamedTopic}</code></div>
+            <div>删除已保存按键的主题：<code>${deleteTopic}</code></div>
+            <div>推荐示例：向 <code>${sendNamedTopic}</code> 发布 payload <code>${exampleName}</code></div>
           </div>
 
           ${
@@ -333,6 +375,10 @@ class EspIrMqttCard extends HTMLElement {
                       return `
                         <div class="key">
                           <div class="key-name">${key}</div>
+                          <div class="topic">
+                            发送主题：<code>${sendNamedTopic}</code><br />
+                            发送内容：<code>${key}</code>
+                          </div>
                           <div class="key-actions">
                             <button class="primary send-btn" data-key="${key}">发送</button>
                             ${
@@ -345,7 +391,7 @@ class EspIrMqttCard extends HTMLElement {
                       `;
                     })
                     .join("")
-                : `<div class="empty">还没有保存任何按键。请先学习红外，然后点击“一键保存当前学习结果”。</div>`
+                : `<div class="empty">还没有保存任何按键。请先学习红外，然后点击“一键保存当前学习结果”。<br /><br />自动化示例：向 <code>${sendNamedTopic}</code> 发布 <code>${exampleName}</code></div>`
             }
           </div>
         </div>

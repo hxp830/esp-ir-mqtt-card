@@ -103,6 +103,7 @@ title: 红外按键面板
 store_entity: sensor.esp_ir_store
 topic_prefix: newchuangan1/ir
 columns: 3
+default_example_name: test_ir
 ```
 
 ## How It Works
@@ -225,6 +226,7 @@ title: 红外按键面板
 store_entity: sensor.esp_ir_store
 topic_prefix: newchuangan1/ir
 columns: 3
+default_example_name: test_ir
 ```
 
 ### 工作原理
