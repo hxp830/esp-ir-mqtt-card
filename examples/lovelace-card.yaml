@@ -1,5 +1,7 @@
 type: custom:esp-ir-mqtt-card
-title: Living Room IR
+title: ESP IR Remote Panel
 store_entity: sensor.esp_ir_store
 topic_prefix: newchuangan1/ir
 columns: 3
+default_example_name: test_ir
+language: en

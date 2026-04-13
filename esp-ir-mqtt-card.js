@@ -1,4 +1,73 @@
 class EspIrMqttCard extends HTMLElement {
+  static TRANSLATIONS = {
+    en: {
+      title: "ESP IR Remote Panel",
+      subtitle: "Learn IR codes in ESPHome, then save, send, and delete keys in Home Assistant.",
+      storeEntityRequired: "store_entity is required",
+      topicPrefixRequired: "topic_prefix is required",
+      enterKeyName: "Please enter a key name",
+      savedAs: "Saved as {value}",
+      sendingNamed: "Sending {name}",
+      deletedNamed: "Deleted {name}",
+      sendingLast: "Sending the most recently learned code",
+      badge: "Store entity: {entity} | State: {state}",
+      placeholder: "Enter a key name, e.g. AC Power or ac_power_on",
+      saveCurrent: "Save Current Learned Code",
+      sendLast: "Send Last Learned Code",
+      unavailable: "Store entity <strong>{entity}</strong> is unavailable. Please create the MQTT sensor first, then reload Home Assistant.",
+      sendTopic: "Send topic:",
+      sendPayload: "Payload:",
+      send: "Send",
+      delete: "Delete",
+      confirmDelete: "Confirm Delete",
+      empty: "No saved keys yet. Learn an IR code first, then click “Save Current Learned Code”.",
+    },
+    zh: {
+      title: "红外按键面板",
+      subtitle: "先在 ESPHome 上学习红外，再在 Home Assistant 里保存、发射和删除按键。",
+      storeEntityRequired: "store_entity 是必填项",
+      topicPrefixRequired: "topic_prefix 是必填项",
+      enterKeyName: "请先输入按键名称",
+      savedAs: "已保存为 {value}",
+      sendingNamed: "正在发送 {name}",
+      deletedNamed: "已删除 {name}",
+      sendingLast: "正在发送最近学习结果",
+      badge: "存储实体：{entity} | 当前状态：{state}",
+      placeholder: "输入按键名称，例如 空调打开 或 ac_power_on",
+      saveCurrent: "一键保存当前学习结果",
+      sendLast: "发送最近学习结果",
+      unavailable: "存储实体 <strong>{entity}</strong> 当前不可用。请先创建 MQTT 传感器，然后重载 Home Assistant。",
+      sendTopic: "发送主题：",
+      sendPayload: "发送内容：",
+      send: "发送",
+      delete: "删除",
+      confirmDelete: "确认删除",
+      empty: "还没有保存任何按键。请先学习红外，然后点击“一键保存当前学习结果”。",
+    },
+    ru: {
+      title: "Панель ИК-кнопок",
+      subtitle: "Сначала обучите ИК-коды в ESPHome, затем сохраняйте, отправляйте и удаляйте кнопки в Home Assistant.",
+      storeEntityRequired: "store_entity обязателен",
+      topicPrefixRequired: "topic_prefix обязателен",
+      enterKeyName: "Сначала введите имя кнопки",
+      savedAs: "Сохранено как {value}",
+      sendingNamed: "Отправка {name}",
+      deletedNamed: "Удалено {name}",
+      sendingLast: "Отправка последнего изученного кода",
+      badge: "Сущность хранилища: {entity} | Состояние: {state}",
+      placeholder: "Введите имя кнопки, например AC Power или ac_power_on",
+      saveCurrent: "Сохранить текущий код",
+      sendLast: "Отправить последний код",
+      unavailable: "Сущность хранилища <strong>{entity}</strong> недоступна. Сначала создайте MQTT-сенсор, затем перезагрузите Home Assistant.",
+      sendTopic: "Тема отправки:",
+      sendPayload: "Полезная нагрузка:",
+      send: "Отправить",
+      delete: "Удалить",
+      confirmDelete: "Подтвердить удаление",
+      empty: "Сохраненных кнопок пока нет. Сначала изучите ИК-код, затем нажмите «Сохранить текущий код».",
+    },
+  };
+
   static getConfigElement() {
     return document.createElement("esp-ir-mqtt-card-editor");
   }
@@ -18,10 +87,12 @@ class EspIrMqttCard extends HTMLElement {
     if (!config.topic_prefix) {
       throw new Error("topic_prefix is required");
     }
+    const language = this._resolveLanguage(config.language);
     this._config = {
-      title: "红外按键面板",
+      title: EspIrMqttCard.TRANSLATIONS[language].title,
       columns: 3,
       default_example_name: "test_ir",
+      language,
       ...config,
     };
     this._pendingDelete = null;
@@ -59,6 +130,24 @@ class EspIrMqttCard extends HTMLElement {
 
   _getStoreEntity() {
     return this._hass?.states?.[this._config.store_entity];
+  }
+
+  _resolveLanguage(lang) {
+    const normalized = (lang || "").toLowerCase();
+    if (normalized.startsWith("zh")) return "zh";
+    if (normalized.startsWith("ru")) return "ru";
+    if (normalized.startsWith("en")) return "en";
+    const hassLang = (this._hass?.language || this._hass?.locale?.language || "").toLowerCase();
+    if (hassLang.startsWith("zh")) return "zh";
+    if (hassLang.startsWith("ru")) return "ru";
+    return "en";
+  }
+
+  _t(key, vars = {}) {
+    const language = this._resolveLanguage(this._config?.language);
+    const pack = EspIrMqttCard.TRANSLATIONS[language] || EspIrMqttCard.TRANSLATIONS.en;
+    const template = pack[key] || EspIrMqttCard.TRANSLATIONS.en[key] || key;
+    return template.replace(/\{(\w+)\}/g, (_match, name) => (vars[name] ?? "").toString());
   }
 
   _extractKeys(stateObj) {
@@ -103,29 +192,29 @@ class EspIrMqttCard extends HTMLElement {
     const input = this.shadowRoot?.getElementById("save-name");
     const value = input?.value?.trim();
     if (!value) {
-      this._toast("请先输入按键名称");
+      this._toast(this._t("enterKeyName"));
       return;
     }
     this._publish(`${this._config.topic_prefix}/save_as`, value);
     input.value = "";
-    this._toast(`已保存为 ${value}`);
+    this._toast(this._t("savedAs", { value }));
   }
 
   _sendNamed(name) {
     this._publish(`${this._config.topic_prefix}/send/named`, name);
-    this._toast(`正在发送 ${name}`);
+    this._toast(this._t("sendingNamed", { name }));
   }
 
   _deleteNamed(name) {
     this._publish(`${this._config.topic_prefix}/delete`, name);
     this._pendingDelete = null;
-    this._toast(`已删除 ${name}`);
+    this._toast(this._t("deletedNamed", { name }));
     this._render();
   }
 
   _sendLast() {
     this._publish(`${this._config.topic_prefix}/send/last`, "1");
-    this._toast("正在发送最近学习结果");
+    this._toast(this._t("sendingLast"));
   }
 
   _toast(message) {
@@ -149,6 +238,19 @@ class EspIrMqttCard extends HTMLElement {
     const entityState = stateObj ? stateObj.state : "unavailable";
     const exampleName = this._config.default_example_name || "test_ir";
     const sendNamedTopic = `${this._config.topic_prefix}/send/named`;
+    const title = this._config.title || this._t("title");
+    const subtitle = this._t("subtitle");
+    const badge = this._t("badge", { entity: this._config.store_entity, state: entityState });
+    const placeholder = this._t("placeholder");
+    const saveCurrent = this._t("saveCurrent");
+    const sendLast = this._t("sendLast");
+    const unavailable = this._t("unavailable", { entity: this._config.store_entity });
+    const sendTopic = this._t("sendTopic");
+    const sendPayload = this._t("sendPayload");
+    const send = this._t("send");
+    const deleteLabel = this._t("delete");
+    const confirmDelete = this._t("confirmDelete");
+    const empty = this._t("empty");
 
     this.shadowRoot.innerHTML = `
       <style>
@@ -325,21 +427,21 @@ class EspIrMqttCard extends HTMLElement {
         <div class="wrap">
           <div class="hero">
             <div>
-              <div class="title">${this._config.title}</div>
-              <div class="subtitle">先在 ESPHome 上学习红外，再在 Home Assistant 里保存、发射和删除按键。</div>
+              <div class="title">${title}</div>
+              <div class="subtitle">${subtitle}</div>
             </div>
-            <div class="badge">存储实体：${this._config.store_entity} | 当前状态：${entityState}</div>
+            <div class="badge">${badge}</div>
           </div>
 
           <div class="controls">
-            <input id="save-name" value="${exampleName}" placeholder="输入按键名称，例如 空调打开 或 ac_power_on" />
-            <button class="primary" id="save-btn">一键保存当前学习结果</button>
-            <button class="secondary" id="send-last-btn">发送最近学习结果</button>
+            <input id="save-name" value="${exampleName}" placeholder="${placeholder}" />
+            <button class="primary" id="save-btn">${saveCurrent}</button>
+            <button class="secondary" id="send-last-btn">${sendLast}</button>
           </div>
 
           ${
             !stateObj
-              ? `<div class="error">存储实体 <strong>${this._config.store_entity}</strong> 当前不可用。请先创建 MQTT 传感器，然后重载 Home Assistant。</div>`
+              ? `<div class="error">${unavailable}</div>`
               : ""
           }
 
@@ -353,22 +455,22 @@ class EspIrMqttCard extends HTMLElement {
                         <div class="key">
                           <div class="key-name">${key}</div>
                           <div class="topic">
-                            发送主题：<code>${sendNamedTopic}</code><br />
-                            发送内容：<code>${key}</code>
+                            ${sendTopic}<code>${sendNamedTopic}</code><br />
+                            ${sendPayload}<code>${key}</code>
                           </div>
                           <div class="key-actions">
-                            <button class="primary send-btn" data-key="${key}">发送</button>
+                            <button class="primary send-btn" data-key="${key}">${send}</button>
                             ${
                               confirming
-                                ? `<button class="confirm delete-confirm-btn" data-key="${key}">确认删除</button>`
-                                : `<button class="delete delete-btn" data-key="${key}">删除</button>`
+                                ? `<button class="confirm delete-confirm-btn" data-key="${key}">${confirmDelete}</button>`
+                                : `<button class="delete delete-btn" data-key="${key}">${deleteLabel}</button>`
                             }
                           </div>
                         </div>
                       `;
                     })
                     .join("")
-                : `<div class="empty">还没有保存任何按键。请先学习红外，然后点击“一键保存当前学习结果”。</div>`
+                : `<div class="empty">${empty}</div>`
             }
           </div>
         </div>
@@ -404,7 +506,7 @@ customElements.define("esp-ir-mqtt-card-editor", EspIrMqttCardEditor);
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: "esp-ir-mqtt-card",
-  name: "ESP 红外遥控卡片",
+  name: "ESP IR MQTT Card",
   preview: true,
-  description: "为 ESPHome MQTT 红外网关动态生成中文按键按钮。",
+  description: "Multilingual ESPHome MQTT infrared card for Home Assistant.",
 });
