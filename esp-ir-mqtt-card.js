@@ -2,7 +2,7 @@ class EspIrMqttCard extends HTMLElement {
   static TRANSLATIONS = {
     en: {
       title: "ESP IR Remote Panel",
-      subtitle: "Learn IR codes in ESPHome, then save, send, and delete keys in Home Assistant.",
+      subtitle: "Learn IR codes first, then save, send, and delete buttons in Home Assistant.",
       storeEntityRequired: "store_entity is required",
       topicPrefixRequired: "topic_prefix is required",
       enterKeyName: "Please enter a key name",
@@ -24,7 +24,7 @@ class EspIrMqttCard extends HTMLElement {
     },
     zh: {
       title: "红外按键面板",
-      subtitle: "先在 ESPHome 上学习红外，再在 Home Assistant 里保存、发射和删除按键。",
+      subtitle: "先学习红外，再在 Home Assistant 里保存、发射和删除按钮。",
       storeEntityRequired: "store_entity 是必填项",
       topicPrefixRequired: "topic_prefix 是必填项",
       enterKeyName: "请先输入按键名称",
@@ -46,7 +46,7 @@ class EspIrMqttCard extends HTMLElement {
     },
     ru: {
       title: "Панель ИК-кнопок",
-      subtitle: "Сначала обучите ИК-коды в ESPHome, затем сохраняйте, отправляйте и удаляйте кнопки в Home Assistant.",
+      subtitle: "Сначала обучите ИК-коды, затем сохраняйте, отправляйте и удаляйте кнопки в Home Assistant.",
       storeEntityRequired: "store_entity обязателен",
       topicPrefixRequired: "topic_prefix обязателен",
       enterKeyName: "Сначала введите имя кнопки",
