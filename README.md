@@ -20,6 +20,7 @@ It automatically renders buttons from your saved key list and gives you a clean 
 - No hardcoded key list inside Lovelace
 - Simple setup with Home Assistant `mqtt.publish`
 - Works well with your ESPHome topics such as `newchuangan1/ir/...`
+- One-click copy for Home Assistant MQTT automation YAML per key
 
 ## Repository Layout
 

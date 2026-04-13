@@ -123,6 +123,22 @@ class EspIrMqttCard extends HTMLElement {
     this._render();
   }
 
+  async _copyAutomationYaml(name) {
+    const yaml = `alias: 红外按键 - ${name}
+sequence:
+  - service: mqtt.publish
+    data:
+      topic: ${this._config.topic_prefix}/send/named
+      payload: "${name}"
+mode: single`;
+    try {
+      await navigator.clipboard.writeText(yaml);
+      this._toast(`已复制 ${name} 的自动化示例`);
+    } catch (_err) {
+      this._toast("复制失败，请检查浏览器剪贴板权限");
+    }
+  }
+
   _sendLast() {
     this._publish(`${this._config.topic_prefix}/send/last`, "1");
     this._toast("正在发送最近学习结果");
@@ -291,10 +307,11 @@ class EspIrMqttCard extends HTMLElement {
         }
         .key-actions {
           display: flex;
+          flex-wrap: wrap;
           gap: 8px;
         }
         .key-actions button {
-          flex: 1;
+          flex: 1 1 calc(50% - 4px);
           padding: 10px 12px;
           font-size: 0.88rem;
         }
@@ -306,6 +323,11 @@ class EspIrMqttCard extends HTMLElement {
         .confirm {
           background: #be123c;
           color: white;
+        }
+        .copy {
+          background: #eff6ff;
+          color: #1d4ed8;
+          border: 1px solid rgba(29, 78, 216, 0.14);
         }
         .empty {
           padding: 24px 14px;
@@ -381,6 +403,7 @@ class EspIrMqttCard extends HTMLElement {
                           </div>
                           <div class="key-actions">
                             <button class="primary send-btn" data-key="${key}">发送</button>
+                            <button class="copy copy-btn" data-key="${key}">复制自动化示例</button>
                             ${
                               confirming
                                 ? `<button class="confirm delete-confirm-btn" data-key="${key}">确认删除</button>`
@@ -402,6 +425,9 @@ class EspIrMqttCard extends HTMLElement {
     this.shadowRoot.getElementById("send-last-btn")?.addEventListener("click", () => this._sendLast());
     this.shadowRoot.querySelectorAll(".send-btn").forEach((button) => {
       button.addEventListener("click", (ev) => this._sendNamed(ev.currentTarget.dataset.key));
+    });
+    this.shadowRoot.querySelectorAll(".copy-btn").forEach((button) => {
+      button.addEventListener("click", (ev) => this._copyAutomationYaml(ev.currentTarget.dataset.key));
     });
     this.shadowRoot.querySelectorAll(".delete-btn").forEach((button) => {
       button.addEventListener("click", (ev) => {
