@@ -1,0 +1,5 @@
+type: custom:esp-ir-mqtt-card
+title: Living Room IR
+store_entity: sensor.esp_ir_store
+topic_prefix: newchuangan1/ir
+columns: 3

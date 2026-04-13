@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1440" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F4FFFC"/>
+      <stop offset="1" stop-color="#DDF7F1"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="620" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FBFFFE"/>
+      <stop offset="1" stop-color="#EEFBF8"/>
+    </linearGradient>
+  </defs>
+  <rect width="1440" height="900" fill="url(#bg)"/>
+  <circle cx="1250" cy="120" r="180" fill="#B6EFE1" fill-opacity=".45"/>
+  <circle cx="150" cy="760" r="210" fill="#A7F3D0" fill-opacity=".35"/>
+  <rect x="180" y="120" width="1080" height="650" rx="28" fill="url(#card)" stroke="#B9E8DD" stroke-width="2"/>
+  <text x="230" y="190" fill="#173533" font-family="Segoe UI, Arial, sans-serif" font-size="40" font-weight="700">ESP IR MQTT Card</text>
+  <text x="230" y="232" fill="#5B7974" font-family="Segoe UI, Arial, sans-serif" font-size="22">Dynamic buttons for saved infrared keys in Home Assistant</text>
+  <rect x="930" y="160" width="280" height="44" rx="22" fill="#FFFFFF" stroke="#CBEDE5"/>
+  <text x="962" y="188" fill="#31534E" font-family="Segoe UI, Arial, sans-serif" font-size="18">sensor.esp_ir_store | State: 6</text>
+  <rect x="230" y="280" width="430" height="58" rx="16" fill="#FFFFFF" stroke="#D5ECE7"/>
+  <text x="255" y="317" fill="#7C9692" font-family="Segoe UI, Arial, sans-serif" font-size="22">Enter key name, e.g. tv_power</text>
+  <rect x="680" y="280" width="190" height="58" rx="16" fill="#0F766E"/>
+  <text x="724" y="317" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">Save Current</text>
+  <rect x="890" y="280" width="160" height="58" rx="16" fill="#FFFFFF" stroke="#CBEDE5"/>
+  <text x="936" y="317" fill="#23403D" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">Send Last</text>
+  <g>
+    <rect x="230" y="390" width="300" height="140" rx="20" fill="#FFFFFF" stroke="#D6EDE8"/>
+    <text x="255" y="438" fill="#173533" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">tv_power</text>
+    <rect x="255" y="462" width="118" height="42" rx="12" fill="#0F766E"/>
+    <text x="292" y="489" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700">Send</text>
+    <rect x="387" y="462" width="118" height="42" rx="12" fill="#FFF1F2" stroke="#F3C6D0"/>
+    <text x="416" y="489" fill="#BE123C" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700">Delete</text>
+  </g>
+  <g>
+    <rect x="570" y="390" width="300" height="140" rx="20" fill="#FFFFFF" stroke="#D6EDE8"/>
+    <text x="595" y="438" fill="#173533" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">tv_vol_up</text>
+    <rect x="595" y="462" width="118" height="42" rx="12" fill="#0F766E"/>
+    <text x="632" y="489" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700">Send</text>
+    <rect x="727" y="462" width="118" height="42" rx="12" fill="#FFF1F2" stroke="#F3C6D0"/>
+    <text x="756" y="489" fill="#BE123C" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700">Delete</text>
+  </g>
+  <g>
+    <rect x="910" y="390" width="300" height="140" rx="20" fill="#FFFFFF" stroke="#D6EDE8"/>
+    <text x="935" y="438" fill="#173533" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">ac_cool_24</text>
+    <rect x="935" y="462" width="118" height="42" rx="12" fill="#0F766E"/>
+    <text x="972" y="489" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700">Send</text>
+    <rect x="1067" y="462" width="118" height="42" rx="12" fill="#FFF1F2" stroke="#F3C6D0"/>
+    <text x="1096" y="489" fill="#BE123C" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700">Delete</text>
+  </g>
+  <g>
+    <rect x="230" y="560" width="300" height="140" rx="20" fill="#FFFFFF" stroke="#D6EDE8"/>
+    <text x="255" y="608" fill="#173533" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">light_scene_1</text>
+    <rect x="255" y="632" width="118" height="42" rx="12" fill="#0F766E"/>
+    <text x="292" y="659" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700">Send</text>
+    <rect x="387" y="632" width="118" height="42" rx="12" fill="#FFF1F2" stroke="#F3C6D0"/>
+    <text x="416" y="659" fill="#BE123C" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700">Delete</text>
+  </g>
+</svg>
