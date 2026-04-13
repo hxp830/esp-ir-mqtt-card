@@ -10,8 +10,6 @@ mqtt:
           0
         {% endif %}
       json_attributes_topic: "newchuangan1/ir/store"
-
-  sensor:
     - name: ESP IR Last Learned
       unique_id: esp_ir_last_learned
       state_topic: "newchuangan1/ir/stored/last"

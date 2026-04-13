@@ -81,7 +81,6 @@ mqtt:
           0
         {% endif %}
       json_attributes_topic: "newchuangan1/ir/store"
-
     - name: ESP IR Last Learned
       unique_id: esp_ir_last_learned
       state_topic: "newchuangan1/ir/stored/last"
@@ -242,3 +241,16 @@ columns: 3
 - `newchuangan1/ir/store`
 
 Home Assistant 会把这个 JSON topic 映射到 `sensor.esp_ir_store` 的 attributes，卡片再从这些 attributes 自动生成按钮。
+
+如果卡片顶部显示：
+
+```text
+Store entity: sensor.esp_ir_store | State: unavailable
+```
+
+通常表示 `sensor.esp_ir_store` 还没有正确创建，或者 MQTT YAML 没有重载成功。此时先确认：
+
+- `examples/home-assistant-mqtt.yaml` 已经按原样加入配置
+- Home Assistant 已重载 MQTT 或已重启
+- 开发者工具里能看到 `sensor.esp_ir_store`
+- `sensor.esp_ir_store` 的 attributes 里包含你保存的键名，例如 `ac_power_on`

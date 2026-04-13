@@ -281,6 +281,15 @@ class EspIrMqttCard extends HTMLElement {
           border-radius: 18px;
           border: 1px dashed rgba(22, 51, 49, 0.15);
         }
+        .error {
+          padding: 18px 16px;
+          margin-bottom: 16px;
+          border-radius: 18px;
+          background: #fff7ed;
+          color: #9a3412;
+          border: 1px solid rgba(154, 52, 18, 0.15);
+          line-height: 1.5;
+        }
         @media (max-width: 720px) {
           .hero {
             flex-direction: column;
@@ -308,6 +317,12 @@ class EspIrMqttCard extends HTMLElement {
             <button class="primary" id="save-btn">Save Current</button>
             <button class="secondary" id="send-last-btn">Send Last</button>
           </div>
+
+          ${
+            !stateObj
+              ? `<div class="error">The store entity <strong>${this._config.store_entity}</strong> is unavailable. Create the MQTT sensor first, then reload Home Assistant.</div>`
+              : ""
+          }
 
           <div class="keys">
             ${

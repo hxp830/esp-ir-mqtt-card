@@ -38,6 +38,16 @@ mqtt:
           0
         {% endif %}
       json_attributes_topic: "newchuangan1/ir/store"
+    - name: ESP IR Last Learned
+      unique_id: esp_ir_last_learned
+      state_topic: "newchuangan1/ir/stored/last"
+
+  binary_sensor:
+    - name: ESP IR Device Online
+      unique_id: esp_ir_device_online
+      state_topic: "newchuangan1/status"
+      payload_on: "online"
+      payload_off: "offline"
 ```
 
 5. Add the card:
