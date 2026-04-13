@@ -25,7 +25,6 @@ class EspIrMqttCard extends HTMLElement {
       ...config,
     };
     this._pendingDelete = null;
-    this._expandedYamlKey = null;
     if (!this.shadowRoot) {
       this.attachShadow({ mode: "open" });
     }
@@ -124,29 +123,6 @@ class EspIrMqttCard extends HTMLElement {
     this._render();
   }
 
-  _buildAutomationYaml(name) {
-    return `alias: 红外按键 - ${name}
-sequence:
-  - service: mqtt.publish
-    data:
-      topic: ${this._config.topic_prefix}/send/named
-      payload: "${name}"
-mode: single`;
-  }
-
-  async _copyAutomationYaml(name) {
-    const yaml = this._buildAutomationYaml(name);
-    try {
-      await navigator.clipboard.writeText(yaml);
-      this._expandedYamlKey = null;
-      this._toast(`已复制 ${name} 的自动化示例`);
-    } catch (_err) {
-      this._expandedYamlKey = this._expandedYamlKey === name ? null : name;
-      this._toast("自动复制失败，已展开文本，可手动复制");
-      this._render();
-    }
-  }
-
   _sendLast() {
     this._publish(`${this._config.topic_prefix}/send/last`, "1");
     this._toast("正在发送最近学习结果");
@@ -173,8 +149,6 @@ mode: single`;
     const entityState = stateObj ? stateObj.state : "unavailable";
     const exampleName = this._config.default_example_name || "test_ir";
     const sendNamedTopic = `${this._config.topic_prefix}/send/named`;
-    const saveAsTopic = `${this._config.topic_prefix}/save_as`;
-    const deleteTopic = `${this._config.topic_prefix}/delete`;
 
     this.shadowRoot.innerHTML = `
       <style>
@@ -228,20 +202,6 @@ mode: single`;
           gap: 10px;
           margin-bottom: 18px;
         }
-        .helper {
-          margin-bottom: 18px;
-          padding: 14px 16px;
-          border-radius: 18px;
-          background: rgba(255,255,255,0.78);
-          border: 1px solid rgba(15, 118, 110, 0.12);
-          color: var(--esp-ir-text);
-          line-height: 1.6;
-        }
-        .helper-title {
-          font-weight: 700;
-          margin-bottom: 8px;
-        }
-        .helper code,
         .topic code {
           display: inline-block;
           padding: 2px 8px;
@@ -332,38 +292,6 @@ mode: single`;
           background: #be123c;
           color: white;
         }
-        .copy {
-          background: #eff6ff;
-          color: #1d4ed8;
-          border: 1px solid rgba(29, 78, 216, 0.14);
-        }
-        .yaml-box {
-          margin-top: 8px;
-          padding: 12px;
-          border-radius: 14px;
-          background: #f8fafc;
-          border: 1px solid rgba(15, 23, 42, 0.08);
-        }
-        .yaml-title {
-          font-size: 0.84rem;
-          font-weight: 700;
-          color: var(--esp-ir-text);
-          margin-bottom: 8px;
-        }
-        textarea {
-          width: 100%;
-          min-height: 140px;
-          box-sizing: border-box;
-          border: 1px solid rgba(22, 51, 49, 0.12);
-          border-radius: 12px;
-          padding: 12px;
-          resize: vertical;
-          font-family: Consolas, "Courier New", monospace;
-          font-size: 0.82rem;
-          line-height: 1.5;
-          background: white;
-          color: var(--esp-ir-text);
-        }
         .empty {
           padding: 24px 14px;
           text-align: center;
@@ -409,14 +337,6 @@ mode: single`;
             <button class="secondary" id="send-last-btn">发送最近学习结果</button>
           </div>
 
-          <div class="helper">
-            <div class="helper-title">自动化控制说明</div>
-            <div>保存当前学习结果的主题：<code>${saveAsTopic}</code></div>
-            <div>按名字发射的主题：<code>${sendNamedTopic}</code></div>
-            <div>删除已保存按键的主题：<code>${deleteTopic}</code></div>
-            <div>推荐示例：向 <code>${sendNamedTopic}</code> 发布 payload <code>${exampleName}</code></div>
-          </div>
-
           ${
             !stateObj
               ? `<div class="error">存储实体 <strong>${this._config.store_entity}</strong> 当前不可用。请先创建 MQTT 传感器，然后重载 Home Assistant。</div>`
@@ -429,8 +349,6 @@ mode: single`;
                 ? keys
                     .map((key) => {
                       const confirming = this._pendingDelete === key;
-                      const expanded = this._expandedYamlKey === key;
-                      const yaml = this._buildAutomationYaml(key);
                       return `
                         <div class="key">
                           <div class="key-name">${key}</div>
@@ -440,26 +358,17 @@ mode: single`;
                           </div>
                           <div class="key-actions">
                             <button class="primary send-btn" data-key="${key}">发送</button>
-                            <button class="copy copy-btn" data-key="${key}">复制自动化示例</button>
                             ${
                               confirming
                                 ? `<button class="confirm delete-confirm-btn" data-key="${key}">确认删除</button>`
                                 : `<button class="delete delete-btn" data-key="${key}">删除</button>`
                             }
                           </div>
-                          ${
-                            expanded
-                              ? `<div class="yaml-box">
-                                  <div class="yaml-title">自动化 YAML 示例，请手动复制</div>
-                                  <textarea readonly>${yaml}</textarea>
-                                </div>`
-                              : ``
-                          }
                         </div>
                       `;
                     })
                     .join("")
-                : `<div class="empty">还没有保存任何按键。请先学习红外，然后点击“一键保存当前学习结果”。<br /><br />自动化示例：向 <code>${sendNamedTopic}</code> 发布 <code>${exampleName}</code></div>`
+                : `<div class="empty">还没有保存任何按键。请先学习红外，然后点击“一键保存当前学习结果”。</div>`
             }
           </div>
         </div>
@@ -470,9 +379,6 @@ mode: single`;
     this.shadowRoot.getElementById("send-last-btn")?.addEventListener("click", () => this._sendLast());
     this.shadowRoot.querySelectorAll(".send-btn").forEach((button) => {
       button.addEventListener("click", (ev) => this._sendNamed(ev.currentTarget.dataset.key));
-    });
-    this.shadowRoot.querySelectorAll(".copy-btn").forEach((button) => {
-      button.addEventListener("click", (ev) => this._copyAutomationYaml(ev.currentTarget.dataset.key));
     });
     this.shadowRoot.querySelectorAll(".delete-btn").forEach((button) => {
       button.addEventListener("click", (ev) => {

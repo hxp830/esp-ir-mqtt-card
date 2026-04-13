@@ -111,10 +111,10 @@ default_example_name: test_ir
 
 The card publishes these MQTT commands through Home Assistant:
 
-- `Save Current` -> `newchuangan1/ir/save_as`
-- `Send` -> `newchuangan1/ir/send/named`
-- `Delete` -> `newchuangan1/ir/delete`
-- `Send Last` -> `newchuangan1/ir/send/last`
+- `一键保存当前学习结果` -> `newchuangan1/ir/save_as`
+- `发送` -> `newchuangan1/ir/send/named`
+- `删除` -> `newchuangan1/ir/delete`
+- `发送最近学习结果` -> `newchuangan1/ir/send/last`
 
 The dynamic button list comes from:
 
