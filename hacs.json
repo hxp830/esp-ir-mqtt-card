@@ -1,0 +1,7 @@
+{
+  "name": "ESP IR MQTT Card",
+  "content_in_root": true,
+  "render_readme": true,
+  "filename": "esp-ir-mqtt-card.js",
+  "type": "frontend"
+}

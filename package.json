@@ -1,0 +1,14 @@
+{
+  "name": "esp-ir-mqtt-card",
+  "version": "1.0.0",
+  "description": "Home Assistant custom card for an ESPHome MQTT infrared bridge",
+  "license": "MIT",
+  "keywords": [
+    "home-assistant",
+    "hacs",
+    "lovelace",
+    "mqtt",
+    "esphome",
+    "infrared"
+  ]
+}
