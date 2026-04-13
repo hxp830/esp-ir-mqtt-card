@@ -99,7 +99,7 @@ Copy from [examples/lovelace-card.yaml](./examples/lovelace-card.yaml):
 
 ```yaml
 type: custom:esp-ir-mqtt-card
-title: Living Room IR
+title: 红外按键面板
 store_entity: sensor.esp_ir_store
 topic_prefix: newchuangan1/ir
 columns: 3
@@ -221,7 +221,7 @@ mqtt:
 
 ```yaml
 type: custom:esp-ir-mqtt-card
-title: Living Room IR
+title: 红外按键面板
 store_entity: sensor.esp_ir_store
 topic_prefix: newchuangan1/ir
 columns: 3

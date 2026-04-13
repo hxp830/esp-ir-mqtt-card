@@ -7,7 +7,7 @@ class EspIrMqttCard extends HTMLElement {
     return {
       store_entity: "sensor.esp_ir_store",
       topic_prefix: "newchuangan1/ir",
-      title: "ESP IR Remote",
+      title: "红外按键面板",
     };
   }
 
@@ -19,7 +19,7 @@ class EspIrMqttCard extends HTMLElement {
       throw new Error("topic_prefix is required");
     }
     this._config = {
-      title: "ESP IR Remote",
+      title: "红外按键面板",
       columns: 3,
       ...config,
     };
@@ -102,29 +102,29 @@ class EspIrMqttCard extends HTMLElement {
     const input = this.shadowRoot?.getElementById("save-name");
     const value = input?.value?.trim();
     if (!value) {
-      this._toast("Name is required");
+      this._toast("请先输入按键名称");
       return;
     }
     this._publish(`${this._config.topic_prefix}/save_as`, value);
     input.value = "";
-    this._toast(`Saved as ${value}`);
+    this._toast(`已保存为 ${value}`);
   }
 
   _sendNamed(name) {
     this._publish(`${this._config.topic_prefix}/send/named`, name);
-    this._toast(`Sending ${name}`);
+    this._toast(`正在发送 ${name}`);
   }
 
   _deleteNamed(name) {
     this._publish(`${this._config.topic_prefix}/delete`, name);
     this._pendingDelete = null;
-    this._toast(`Deleted ${name}`);
+    this._toast(`已删除 ${name}`);
     this._render();
   }
 
   _sendLast() {
     this._publish(`${this._config.topic_prefix}/send/last`, "1");
-    this._toast("Sending last learned code");
+    this._toast("正在发送最近学习结果");
   }
 
   _toast(message) {
@@ -307,20 +307,20 @@ class EspIrMqttCard extends HTMLElement {
           <div class="hero">
             <div>
               <div class="title">${this._config.title}</div>
-              <div class="subtitle">Learn on ESPHome, then save, send, and delete keys from Home Assistant.</div>
+              <div class="subtitle">先在 ESPHome 上学习红外，再在 Home Assistant 里保存、发射和删除按键。</div>
             </div>
-            <div class="badge">Store entity: ${this._config.store_entity} | State: ${entityState}</div>
+            <div class="badge">存储实体：${this._config.store_entity} | 当前状态：${entityState}</div>
           </div>
 
           <div class="controls">
-            <input id="save-name" placeholder="Enter key name, e.g. tv_power" />
-            <button class="primary" id="save-btn">Save Current</button>
-            <button class="secondary" id="send-last-btn">Send Last</button>
+            <input id="save-name" placeholder="输入按键名称，例如 空调打开 或 ac_power_on" />
+            <button class="primary" id="save-btn">一键保存当前学习结果</button>
+            <button class="secondary" id="send-last-btn">发送最近学习结果</button>
           </div>
 
           ${
             !stateObj
-              ? `<div class="error">The store entity <strong>${this._config.store_entity}</strong> is unavailable. Create the MQTT sensor first, then reload Home Assistant.</div>`
+              ? `<div class="error">存储实体 <strong>${this._config.store_entity}</strong> 当前不可用。请先创建 MQTT 传感器，然后重载 Home Assistant。</div>`
               : ""
           }
 
@@ -334,18 +334,18 @@ class EspIrMqttCard extends HTMLElement {
                         <div class="key">
                           <div class="key-name">${key}</div>
                           <div class="key-actions">
-                            <button class="primary send-btn" data-key="${key}">Send</button>
+                            <button class="primary send-btn" data-key="${key}">发送</button>
                             ${
                               confirming
-                                ? `<button class="confirm delete-confirm-btn" data-key="${key}">Confirm</button>`
-                                : `<button class="delete delete-btn" data-key="${key}">Delete</button>`
+                                ? `<button class="confirm delete-confirm-btn" data-key="${key}">确认删除</button>`
+                                : `<button class="delete delete-btn" data-key="${key}">删除</button>`
                             }
                           </div>
                         </div>
                       `;
                     })
                     .join("")
-                : `<div class="empty">No saved keys yet. Learn a code on ESPHome and click Save Current.</div>`
+                : `<div class="empty">还没有保存任何按键。请先学习红外，然后点击“一键保存当前学习结果”。</div>`
             }
           </div>
         </div>
@@ -381,7 +381,7 @@ customElements.define("esp-ir-mqtt-card-editor", EspIrMqttCardEditor);
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: "esp-ir-mqtt-card",
-  name: "ESP IR MQTT Card",
+  name: "ESP 红外遥控卡片",
   preview: true,
-  description: "Dynamic IR key buttons for an ESPHome MQTT infrared bridge.",
+  description: "为 ESPHome MQTT 红外网关动态生成中文按键按钮。",
 });
