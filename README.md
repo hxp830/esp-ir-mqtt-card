@@ -11,7 +11,7 @@ It automatically renders buttons from your saved key list and gives you a clean 
 - delete a saved key
 - send the last learned code
 
-![Card Preview](./assets/card-preview.svg)
+![Card Preview](./assets/card-preview.png)
 
 ## Features
 
