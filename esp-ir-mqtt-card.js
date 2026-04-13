@@ -280,6 +280,10 @@ class EspIrMqttCard extends HTMLElement {
           align-items: flex-start;
           margin-bottom: 16px;
         }
+        .hero > div:first-child {
+          min-width: 0;
+          flex: 1 1 auto;
+        }
         .title {
           font-size: 1.2rem;
           font-weight: 700;
@@ -293,10 +297,16 @@ class EspIrMqttCard extends HTMLElement {
         .badge {
           background: rgba(255,255,255,0.8);
           border: 1px solid var(--esp-ir-border);
-          border-radius: 999px;
+          border-radius: 18px;
           padding: 8px 12px;
           font-size: 0.82rem;
-          white-space: nowrap;
+          white-space: normal;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+          line-height: 1.45;
+          flex: 0 1 340px;
+          max-width: 100%;
+          text-align: left;
         }
         .controls {
           display: grid;
@@ -414,6 +424,11 @@ class EspIrMqttCard extends HTMLElement {
         @media (max-width: 720px) {
           .hero {
             flex-direction: column;
+          }
+          .badge {
+            width: 100%;
+            box-sizing: border-box;
+            flex-basis: auto;
           }
           .controls {
             grid-template-columns: 1fr;
