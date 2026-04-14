@@ -13,6 +13,7 @@ class EspIrMqttCard extends HTMLElement {
       topicPrefixRequired: "topic_prefix is required",
       enterKeyName: "Please enter a key name",
       savedAs: "Saved as {value}",
+      savedAndContinue: "Saved as {value}. Waiting for the next IR command.",
       sendingNamed: "Sending {name}",
       deletedNamed: "Deleted {name}",
       sendingLast: "Sending the most recently learned code",
@@ -67,6 +68,7 @@ class EspIrMqttCard extends HTMLElement {
       topicPrefixRequired: "topic_prefix 是必填项",
       enterKeyName: "请先输入按键名称",
       savedAs: "已保存为 {value}",
+      savedAndContinue: "已保存为 {value}，继续等待下一条红外命令。",
       sendingNamed: "正在发送 {name}",
       deletedNamed: "已删除 {name}",
       sendingLast: "正在发送最近学习结果",
@@ -121,6 +123,7 @@ class EspIrMqttCard extends HTMLElement {
       topicPrefixRequired: "topic_prefix обязателен",
       enterKeyName: "Сначала введите имя кнопки",
       savedAs: "Сохранено как {value}",
+      savedAndContinue: "Сохранено как {value}. Ожидание следующей ИК-команды.",
       sendingNamed: "Отправка {name}",
       deletedNamed: "Удалено {name}",
       sendingLast: "Отправка последнего изученного кода",
@@ -566,7 +569,7 @@ class EspIrMqttCard extends HTMLElement {
       return;
     }
     this._publish(`${this._config.topic_prefix}/save_as`, value);
-    this._toast(this._t("savedAs", { value }));
+    this._toast(this._t(batchMode ? "savedAndContinue" : "savedAs", { value }));
     this._learnDialog = null;
     if (batchMode && this._batchLearn?.active) {
       this._batchLearn = {
