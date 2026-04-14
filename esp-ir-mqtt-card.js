@@ -32,6 +32,11 @@ class EspIrMqttCard extends HTMLElement {
       sendTopic: "Send topic:",
       sendPayload: "Payload:",
       send: "Send",
+      rename: "Rename",
+      renameTitle: "Rename IR Command",
+      renamePrompt: "Enter a new name for this IR command",
+      renamedTo: "Renamed {from} to {to}",
+      renameExists: "A key with this name already exists",
       delete: "Delete",
       confirmDelete: "Confirm Delete",
       empty: "No saved keys yet. Learn an IR code first, then click “Save Current Learned Code”.",
@@ -78,6 +83,11 @@ class EspIrMqttCard extends HTMLElement {
       sendTopic: "发送主题：",
       sendPayload: "发送内容：",
       send: "发送",
+      rename: "修改名称",
+      renameTitle: "修改红外命令名称",
+      renamePrompt: "请输入这个红外命令的新名称",
+      renamedTo: "已将 {from} 修改为 {to}",
+      renameExists: "已存在同名按键",
       delete: "删除",
       confirmDelete: "确认删除",
       empty: "还没有保存任何按键。请先学习红外，然后点击“一键保存当前学习结果”。",
@@ -124,6 +134,11 @@ class EspIrMqttCard extends HTMLElement {
       sendTopic: "Тема отправки:",
       sendPayload: "Полезная нагрузка:",
       send: "Отправить",
+      rename: "Переименовать",
+      renameTitle: "Переименовать ИК-команду",
+      renamePrompt: "Введите новое имя для этой ИК-команды",
+      renamedTo: "Переименовано: {from} -> {to}",
+      renameExists: "Кнопка с таким именем уже существует",
       delete: "Удалить",
       confirmDelete: "Подтвердить удаление",
       empty: "Сохраненных кнопок пока нет. Сначала изучите ИК-код, затем нажмите «Сохранить текущий код».",
@@ -185,6 +200,7 @@ class EspIrMqttCard extends HTMLElement {
     };
     this._pendingDelete = null;
     this._learnDialog = null;
+    this._renameDialog = null;
     if (!this.shadowRoot) {
       this.attachShadow({ mode: "open" });
     }
@@ -377,6 +393,44 @@ class EspIrMqttCard extends HTMLElement {
     return [...keys].sort((a, b) => a.localeCompare(b));
   }
 
+  _getStoreMap(stateObj = this._getStoreEntity()) {
+    if (!stateObj) {
+      return {};
+    }
+
+    if (typeof stateObj.state === "string" && stateObj.state.trim().startsWith("{")) {
+      try {
+        const parsed = JSON.parse(stateObj.state);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          return parsed;
+        }
+      } catch (_err) {
+        // Fall back to attributes.
+      }
+    }
+
+    const ignored = new Set([
+      "friendly_name",
+      "icon",
+      "device_class",
+      "state_class",
+      "unit_of_measurement",
+      "entity_picture",
+      "attribution",
+      "assumed_state",
+      "supported_features",
+      "restored",
+    ]);
+
+    const result = {};
+    Object.entries(stateObj.attributes || {}).forEach(([key, value]) => {
+      if (!ignored.has(key) && !key.startsWith("_")) {
+        result[key] = value;
+      }
+    });
+    return result;
+  }
+
   _handleLearnedStateChange(previousValue, nextValue) {
     if (!this._learnDialog || this._learnDialog.step !== "waiting") {
       return;
@@ -560,6 +614,77 @@ class EspIrMqttCard extends HTMLElement {
     this._toast(this._t("sendingLast"));
   }
 
+  _openRenameDialog(name) {
+    if (this._getMqttStatusInfo().connectionState !== "connected") {
+      return;
+    }
+    this._renameDialog = {
+      oldName: name,
+      newName: name,
+    };
+    this._render();
+    queueMicrotask(() => {
+      this.shadowRoot?.getElementById("rename-name")?.focus();
+      this.shadowRoot?.getElementById("rename-name")?.select();
+    });
+  }
+
+  _updateRenameName(value) {
+    if (!this._renameDialog) {
+      return;
+    }
+    this._renameDialog = {
+      ...this._renameDialog,
+      newName: value,
+    };
+  }
+
+  _cancelRename() {
+    this._renameDialog = null;
+    this._render();
+  }
+
+  async _confirmRename() {
+    if (!this._renameDialog || this._getMqttStatusInfo().connectionState !== "connected") {
+      return;
+    }
+    const oldName = (this._renameDialog.oldName || "").trim();
+    const newName = (this._renameDialog.newName || "").trim();
+    if (!newName) {
+      this._toast(this._t("enterKeyName"));
+      return;
+    }
+    if (newName === oldName) {
+      this._renameDialog = null;
+      this._render();
+      return;
+    }
+
+    const storeMap = this._getStoreMap();
+    if (!Object.prototype.hasOwnProperty.call(storeMap, oldName)) {
+      this._renameDialog = null;
+      this._render();
+      return;
+    }
+    if (Object.prototype.hasOwnProperty.call(storeMap, newName)) {
+      this._toast(this._t("renameExists"));
+      return;
+    }
+
+    const nextStore = { ...storeMap };
+    nextStore[newName] = nextStore[oldName];
+    delete nextStore[oldName];
+    await this._hass.callService("mqtt", "publish", {
+      topic: `${this._config.topic_prefix}/store`,
+      payload: JSON.stringify(nextStore),
+      qos: 0,
+      retain: true,
+    });
+    this._renameDialog = null;
+    this._toast(this._t("renamedTo", { from: oldName, to: newName }));
+    this._render();
+  }
+
   _toast(message) {
     if (!this._hass) return;
     const event = new CustomEvent("hass-notification", {
@@ -568,6 +693,26 @@ class EspIrMqttCard extends HTMLElement {
       detail: { message },
     });
     this.dispatchEvent(event);
+  }
+
+  _renderRenameDialog(mqttConnected) {
+    if (!this._renameDialog) {
+      return "";
+    }
+
+    return `
+      <div class="learn-modal-backdrop">
+        <div class="learn-modal">
+          <div class="learn-modal-title">${this._t("renameTitle")}</div>
+          <div class="learn-modal-text">${this._t("renamePrompt")}</div>
+          <input id="rename-name" value="${this._renameDialog.newName || ""}" placeholder="${this._t("placeholder")}" ${mqttConnected ? "" : "disabled"} />
+          <div class="learn-modal-actions">
+            <button class="primary" id="rename-confirm-btn" ${mqttConnected ? "" : "disabled"}>${this._t("rename")}</button>
+            <button class="secondary" id="rename-cancel-btn">${this._t("cancel")}</button>
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   _render() {
@@ -791,20 +936,26 @@ class EspIrMqttCard extends HTMLElement {
           border-color: var(--esp-ir-accent);
         }
 
+        .key-head {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 10px;
+          margin-bottom: 14px;
+        }
+
         .key-name {
           font-size: 1rem;
           font-weight: 600;
-          margin-bottom: 8px;
           word-break: break-word;
+          flex: 1 1 auto;
         }
 
-        .key-payload {
+        .rename-btn {
+          padding: 6px 10px;
           font-size: 0.8rem;
-          color: var(--esp-ir-text-sub);
-          margin-bottom: 14px;
-          font-family: monospace;
-          word-break: break-all;
-          opacity: 0.72;
+          min-height: 32px;
+          flex: 0 0 auto;
         }
 
         .key-actions {
@@ -1007,8 +1158,10 @@ class EspIrMqttCard extends HTMLElement {
                       const confirming = this._pendingDelete === key;
                       return `
                         <div class="key">
-                          <div class="key-name">${key}</div>
-                          <div class="key-payload">${key}</div>
+                          <div class="key-head">
+                            <div class="key-name">${key}</div>
+                            <button class="secondary rename-btn" data-key="${key}" ${mqttConnected ? "" : "disabled"}>${this._t("rename")}</button>
+                          </div>
                           <div class="key-actions">
                             <button class="primary send-btn" data-key="${key}" ${mqttConnected ? "" : "disabled"}>${send}</button>
                             ${
@@ -1026,6 +1179,7 @@ class EspIrMqttCard extends HTMLElement {
           </div>
 
           ${this._renderLearnDialog(mqttConnected)}
+          ${this._renderRenameDialog(mqttConnected)}
         </div>
       </ha-card>
     `;
@@ -1034,6 +1188,9 @@ class EspIrMqttCard extends HTMLElement {
     this.shadowRoot.getElementById("send-last-btn")?.addEventListener("click", () => this._sendLast());
     this.shadowRoot.querySelectorAll(".send-btn").forEach((button) => {
       button.addEventListener("click", (ev) => this._sendNamed(ev.currentTarget.dataset.key));
+    });
+    this.shadowRoot.querySelectorAll(".rename-btn").forEach((button) => {
+      button.addEventListener("click", (ev) => this._openRenameDialog(ev.currentTarget.dataset.key));
     });
     this.shadowRoot.querySelectorAll(".delete-btn").forEach((button) => {
       button.addEventListener("click", (ev) => {
@@ -1055,6 +1212,14 @@ class EspIrMqttCard extends HTMLElement {
     this.shadowRoot.getElementById("learn-name")?.addEventListener("keydown", (ev) => {
       if (ev.key === "Enter") {
         this._saveLearnedCode();
+      }
+    });
+    this.shadowRoot.getElementById("rename-cancel-btn")?.addEventListener("click", () => this._cancelRename());
+    this.shadowRoot.getElementById("rename-confirm-btn")?.addEventListener("click", () => this._confirmRename());
+    this.shadowRoot.getElementById("rename-name")?.addEventListener("input", (ev) => this._updateRenameName(ev.currentTarget.value));
+    this.shadowRoot.getElementById("rename-name")?.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") {
+        this._confirmRename();
       }
     });
   }
