@@ -24,6 +24,7 @@ class EspIrMqttCard extends HTMLElement {
       mqttStatus: "MQTT:",
       connected: "Connected",
       disconnected: "Disconnected",
+      stateRaw: "Raw state: {value}",
     },
     zh: {
       title: "红外按键面板",
@@ -49,6 +50,7 @@ class EspIrMqttCard extends HTMLElement {
       mqttStatus: "MQTT：",
       connected: "连接",
       disconnected: "未连接",
+      stateRaw: "原始状态：{value}",
     },
     ru: {
       title: "Панель ИК-кнопок",
@@ -74,6 +76,7 @@ class EspIrMqttCard extends HTMLElement {
       mqttStatus: "MQTT:",
       connected: "Подключено",
       disconnected: "Не подключено",
+      stateRaw: "Исходное состояние: {value}",
     },
   };
 
@@ -149,35 +152,52 @@ class EspIrMqttCard extends HTMLElement {
       : null;
   }
 
-  _getMqttConnectionState() {
+  _getMqttStatusInfo() {
     const stateObj = this._getMqttStatusEntity();
-    const normalized = (stateObj?.state || "").toString().toLowerCase();
-    const connectedStates = new Set([
-      "on",
-      "online",
-      "connected",
-      "true",
-      "连接",
-      "已连接",
-      "在线",
-    ]);
-    const disconnectedStates = new Set([
-      "off",
-      "offline",
+    const rawState = (stateObj?.state ?? "").toString();
+    const normalized = rawState.trim().toLowerCase();
+
+    const disconnectedTokens = [
       "disconnected",
+      "disconnect",
+      "offline",
+      "off",
       "false",
       "unavailable",
       "unknown",
       "未连接",
       "离线",
-    ]);
-    if (connectedStates.has(normalized)) {
-      return "connected";
+      "断开",
+    ];
+    const connectedTokens = [
+      "connected",
+      "connect",
+      "online",
+      "on",
+      "true",
+      "连接",
+      "已连接",
+      "在线",
+      "连接成功",
+    ];
+
+    const matchesToken = (tokens) =>
+      tokens.some((token) => normalized === token || normalized.includes(token));
+
+    let connectionState = "disconnected";
+    if (!stateObj || !normalized) {
+      connectionState = "disconnected";
+    } else if (matchesToken(disconnectedTokens)) {
+      connectionState = "disconnected";
+    } else if (matchesToken(connectedTokens)) {
+      connectionState = "connected";
     }
-    if (disconnectedStates.has(normalized) || !stateObj) {
-      return "disconnected";
-    }
-    return "disconnected";
+
+    return {
+      connectionState,
+      rawState: rawState || "unknown",
+      entityId: this._config?.mqtt_status_entity || "",
+    };
   }
 
   _resolveLanguage(lang) {
@@ -289,9 +309,10 @@ class EspIrMqttCard extends HTMLElement {
     const title = this._config.title || this._t("title");
     const subtitle = this._t("subtitle");
     const badge = this._t("badge", { entity: this._config.store_entity, state: entityState });
-    const mqttConnectionState = this._getMqttConnectionState();
-    const mqttStatusText = this._t(mqttConnectionState);
+    const mqttStatus = this._getMqttStatusInfo();
+    const mqttStatusText = this._t(mqttStatus.connectionState);
     const mqttStatusLabel = this._t("mqttStatus");
+    const mqttStatusRaw = this._t("stateRaw", { value: mqttStatus.rawState });
     const placeholder = this._t("placeholder");
     const saveCurrent = this._t("saveCurrent");
     const sendLast = this._t("sendLast");
@@ -362,6 +383,7 @@ class EspIrMqttCard extends HTMLElement {
         .status-row {
           display: flex;
           align-items: center;
+          flex-wrap: wrap;
           gap: 8px;
           margin-top: 8px;
           color: var(--esp-ir-text);
@@ -387,6 +409,13 @@ class EspIrMqttCard extends HTMLElement {
         .status-label {
           color: var(--esp-ir-muted);
           font-weight: 500;
+        }
+        .status-raw {
+          width: 100%;
+          color: var(--esp-ir-muted);
+          font-size: 0.78rem;
+          font-weight: 500;
+          margin-left: 18px;
         }
         .controls {
           display: grid;
@@ -528,9 +557,10 @@ class EspIrMqttCard extends HTMLElement {
             <div class="badge">
               <div>${badge}</div>
               <div class="status-row">
-                <span class="status-dot ${mqttConnectionState}"></span>
+                <span class="status-dot ${mqttStatus.connectionState}"></span>
                 <span class="status-label">${mqttStatusLabel}</span>
                 <span>${mqttStatusText}</span>
+                <span class="status-raw">${mqttStatusRaw}</span>
               </div>
             </div>
           </div>
