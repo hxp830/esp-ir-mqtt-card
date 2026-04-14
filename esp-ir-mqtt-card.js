@@ -1,4 +1,9 @@
 class EspIrMqttCard extends HTMLElement {
+  static DEFAULT_MQTT_STATUS_ENTITY = "binary_sensor.esp_ir_mqtt_online";
+  static LEGACY_MQTT_STATUS_ENTITIES = new Set([
+    "binary_sensor.esp_ir_device_online",
+  ]);
+
   static TRANSLATIONS = {
     en: {
       title: "ESP IR Remote Panel",
@@ -108,7 +113,7 @@ class EspIrMqttCard extends HTMLElement {
   static getStubConfig() {
     return {
       store_entity: "sensor.esp_ir_store",
-      mqtt_status_entity: "binary_sensor.esp_ir_mqtt_online",
+      mqtt_status_entity: EspIrMqttCard.DEFAULT_MQTT_STATUS_ENTITY,
       topic_prefix: "newchuangan1/ir",
       title: "红外按键面板",
     };
@@ -122,13 +127,15 @@ class EspIrMqttCard extends HTMLElement {
       throw new Error("topic_prefix is required");
     }
     const language = this._resolveLanguage(config.language);
+    const mqttStatusEntity = this._normalizeMqttStatusEntity(config.mqtt_status_entity);
     this._config = {
       title: EspIrMqttCard.TRANSLATIONS[language].title,
       columns: 3,
       default_example_name: "test_ir",
-      mqtt_status_entity: "binary_sensor.esp_ir_mqtt_online",
+      mqtt_status_entity: mqttStatusEntity,
       language,
       ...config,
+      mqtt_status_entity: mqttStatusEntity,
     };
     this._pendingDelete = null;
     if (!this.shadowRoot) {
@@ -165,6 +172,14 @@ class EspIrMqttCard extends HTMLElement {
 
   _getStoreEntity() {
     return this._hass?.states?.[this._config.store_entity];
+  }
+
+  _normalizeMqttStatusEntity(entityId) {
+    const normalized = (entityId || "").trim();
+    if (!normalized || EspIrMqttCard.LEGACY_MQTT_STATUS_ENTITIES.has(normalized)) {
+      return EspIrMqttCard.DEFAULT_MQTT_STATUS_ENTITY;
+    }
+    return normalized;
   }
 
   _getMqttStatusEntity() {
@@ -745,7 +760,7 @@ class EspIrMqttCardEditor extends HTMLElement {
     const config = {
       columns: 3,
       default_example_name: "test_ir",
-      mqtt_status_entity: "binary_sensor.esp_ir_mqtt_online",
+      mqtt_status_entity: EspIrMqttCard.DEFAULT_MQTT_STATUS_ENTITY,
       ...this._config,
     };
 
