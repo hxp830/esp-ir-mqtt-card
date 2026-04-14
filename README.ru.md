@@ -87,7 +87,7 @@ mqtt:
 type: custom:esp-ir-mqtt-card
 title: Панель ИК-кнопок
 store_entity: sensor.esp_ir_store
-mqtt_status_entity: binary_sensor.esp_ir_device_online
+mqtt_status_entity: sensor.newchuangan1_mqtt_status
 topic_prefix: newchuangan1/ir
 columns: 3
 default_example_name: test_ir
@@ -102,7 +102,7 @@ language: ru
 
 Необязательная настройка:
 
-- `mqtt_status_entity`: сущность для отображения статуса MQTT, например `binary_sensor.esp_ir_device_online`
+- `mqtt_status_entity`: сущность для отображения статуса MQTT, например `sensor.newchuangan1_mqtt_status`
 
 После настройки в верхней части карточки появится индикатор:
 

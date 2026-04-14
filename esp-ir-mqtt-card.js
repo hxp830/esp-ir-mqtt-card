@@ -84,7 +84,7 @@ class EspIrMqttCard extends HTMLElement {
   static getStubConfig() {
     return {
       store_entity: "sensor.esp_ir_store",
-      mqtt_status_entity: "binary_sensor.esp_ir_device_online",
+      mqtt_status_entity: "sensor.newchuangan1_mqtt_status",
       topic_prefix: "newchuangan1/ir",
       title: "红外按键面板",
     };
@@ -102,7 +102,7 @@ class EspIrMqttCard extends HTMLElement {
       title: EspIrMqttCard.TRANSLATIONS[language].title,
       columns: 3,
       default_example_name: "test_ir",
-      mqtt_status_entity: "binary_sensor.esp_ir_device_online",
+      mqtt_status_entity: "sensor.newchuangan1_mqtt_status",
       language,
       ...config,
     };
@@ -152,8 +152,25 @@ class EspIrMqttCard extends HTMLElement {
   _getMqttConnectionState() {
     const stateObj = this._getMqttStatusEntity();
     const normalized = (stateObj?.state || "").toString().toLowerCase();
-    const connectedStates = new Set(["on", "online", "connected", "true"]);
-    const disconnectedStates = new Set(["off", "offline", "disconnected", "false", "unavailable", "unknown"]);
+    const connectedStates = new Set([
+      "on",
+      "online",
+      "connected",
+      "true",
+      "连接",
+      "已连接",
+      "在线",
+    ]);
+    const disconnectedStates = new Set([
+      "off",
+      "offline",
+      "disconnected",
+      "false",
+      "unavailable",
+      "unknown",
+      "未连接",
+      "离线",
+    ]);
     if (connectedStates.has(normalized)) {
       return "connected";
     }
