@@ -1,7 +1,7 @@
 type: custom:esp-ir-mqtt-card
 title: ESP IR Remote Panel
 store_entity: sensor.esp_ir_store
-mqtt_status_entity: binary_sensor.esp_ir_device_online
+mqtt_status_entity: binary_sensor.esp_ir_mqtt_online
 topic_prefix: newchuangan1/ir
 columns: 3
 default_example_name: test_ir

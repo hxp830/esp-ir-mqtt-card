@@ -16,7 +16,7 @@ mqtt:
 
 template:
   - binary_sensor:
-      - name: ESP IR Device Online
-        unique_id: esp_ir_device_online
+      - name: ESP IR MQTT Online
+        unique_id: esp_ir_mqtt_online
         state: >
           {{ states('sensor.newchuangan1_mqtt_status') in ['connected', 'online', 'on', 'true', '连接', '已连接', '在线'] }}

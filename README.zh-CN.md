@@ -75,8 +75,8 @@ mqtt:
 
 template:
   - binary_sensor:
-      - name: ESP IR Device Online
-        unique_id: esp_ir_device_online
+      - name: ESP IR MQTT Online
+        unique_id: esp_ir_mqtt_online
         state: >
           {{ states('sensor.newchuangan1_mqtt_status') in ['connected', 'online', 'on', 'true', '连接', '已连接', '在线'] }}
 ```
@@ -89,7 +89,7 @@ template:
 type: custom:esp-ir-mqtt-card
 title: 红外按键面板
 store_entity: sensor.esp_ir_store
-mqtt_status_entity: binary_sensor.esp_ir_device_online
+mqtt_status_entity: binary_sensor.esp_ir_mqtt_online
 topic_prefix: newchuangan1/ir
 columns: 3
 default_example_name: test_ir
@@ -104,7 +104,7 @@ language: zh
 
 可选配置：
 
-- `mqtt_status_entity`：用于显示 MQTT 连接状态，建议填写 `binary_sensor.esp_ir_device_online`
+- `mqtt_status_entity`：用于显示 MQTT 连接状态，建议填写 `binary_sensor.esp_ir_mqtt_online`
 
 这里推荐让卡片读取模板 `binary_sensor`，而不是直接读取文本 `sensor`。这样卡片看到的是稳定的 `on/off`，更适合显示绿色或灰色状态点。
 

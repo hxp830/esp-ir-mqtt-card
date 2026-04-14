@@ -75,8 +75,8 @@ mqtt:
 
 template:
   - binary_sensor:
-      - name: ESP IR Device Online
-        unique_id: esp_ir_device_online
+      - name: ESP IR MQTT Online
+        unique_id: esp_ir_mqtt_online
         state: >
           {{ states('sensor.newchuangan1_mqtt_status') in ['connected', 'online', 'on', 'true', '连接', '已连接', '在线'] }}
 ```
@@ -89,7 +89,7 @@ template:
 type: custom:esp-ir-mqtt-card
 title: Панель ИК-кнопок
 store_entity: sensor.esp_ir_store
-mqtt_status_entity: binary_sensor.esp_ir_device_online
+mqtt_status_entity: binary_sensor.esp_ir_mqtt_online
 topic_prefix: newchuangan1/ir
 columns: 3
 default_example_name: test_ir
@@ -104,7 +104,7 @@ language: ru
 
 Необязательная настройка:
 
-- `mqtt_status_entity`: сущность для отображения статуса MQTT, например `binary_sensor.esp_ir_device_online`
+- `mqtt_status_entity`: сущность для отображения статуса MQTT, например `binary_sensor.esp_ir_mqtt_online`
 
 Рекомендуемый вариант: пусть карточка читает шаблонный `binary_sensor`, а не текстовый `sensor`. Так карточка получает стабильное состояние `on/off` для зеленого или серого индикатора.
 
