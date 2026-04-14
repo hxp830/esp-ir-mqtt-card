@@ -29,15 +29,12 @@ class EspIrMqttCard extends HTMLElement {
       cancel: "Cancel",
       batchLearn: "Batch Learn",
       batchLearning: "Batch Learning",
-      batchLearnWaiting: "Keep pressing remote buttons. Each captured IR code will be added below.",
-      batchLearnEmpty: "No IR codes captured yet.",
-      batchSaveAll: "Save All",
+      batchLearnWaiting: "Keep pressing remote buttons. Each captured IR code will open a save dialog immediately.",
       batchStop: "Stop",
       batchDelete: "Batch Delete",
       batchDeleteConfirm: "Delete Selected",
       batchDeleteCancel: "Cancel Selection",
       selectedCount: "{count} selected",
-      removeCaptured: "Remove",
       sendLast: "Send Last Learned Code",
       unavailable: "Store entity <strong>{entity}</strong> is unavailable. Please create the MQTT sensor first, then reload Home Assistant.",
       sendTopic: "Send topic:",
@@ -86,15 +83,12 @@ class EspIrMqttCard extends HTMLElement {
       cancel: "取消",
       batchLearn: "批量学习",
       batchLearning: "批量学习中",
-      batchLearnWaiting: "持续按遥控器按键即可，检测到的红外命令会不断追加到下面。",
-      batchLearnEmpty: "还没有捕获到新的红外命令。",
-      batchSaveAll: "统一保存",
+      batchLearnWaiting: "持续按遥控器按键即可，每次捕获到新的红外命令都会立即弹出保存框。",
       batchStop: "停止",
       batchDelete: "批量删除",
       batchDeleteConfirm: "删除所选",
       batchDeleteCancel: "取消选择",
       selectedCount: "已选择 {count} 项",
-      removeCaptured: "移除",
       sendLast: "发送最近学习结果",
       unavailable: "存储实体 <strong>{entity}</strong> 当前不可用。请先创建 MQTT 传感器，然后重载 Home Assistant。",
       sendTopic: "发送主题：",
@@ -143,15 +137,12 @@ class EspIrMqttCard extends HTMLElement {
       cancel: "Отмена",
       batchLearn: "Пакетное обучение",
       batchLearning: "Пакетное обучение",
-      batchLearnWaiting: "Продолжайте нажимать кнопки на пульте. Каждый принятый ИК-код будет добавлен в список ниже.",
-      batchLearnEmpty: "Пока не получено ни одного ИК-кода.",
-      batchSaveAll: "Сохранить все",
+      batchLearnWaiting: "Продолжайте нажимать кнопки на пульте. Каждый принятый ИК-код сразу откроет диалог сохранения.",
       batchStop: "Остановить",
       batchDelete: "Массовое удаление",
       batchDeleteConfirm: "Удалить выбранные",
       batchDeleteCancel: "Отменить выбор",
       selectedCount: "Выбрано: {count}",
-      removeCaptured: "Убрать",
       sendLast: "Отправить последний код",
       unavailable: "Сущность хранилища <strong>{entity}</strong> недоступна. Сначала создайте MQTT-сенсор, затем перезагрузите Home Assistant.",
       sendTopic: "Тема отправки:",
@@ -420,19 +411,19 @@ class EspIrMqttCard extends HTMLElement {
       if (marker && marker !== baseline && marker !== previousValue) {
         const code = this._getLearnedStateValue().trim();
         if (code) {
-          const itemNumber = (this._batchLearn.items?.length || 0) + 1;
           const baseName = this._config.default_example_name || "ir_key";
+          const itemCount = (this._batchLearn.itemCount || 0) + 1;
           this._batchLearn = {
             ...this._batchLearn,
             baseline: marker,
-            items: [
-              ...this._batchLearn.items,
-              {
-                id: `${Date.now()}_${itemNumber}`,
-                code,
-                name: `${baseName}_${itemNumber}`,
-              },
-            ],
+            pendingCode: code,
+            itemCount,
+          };
+          this._learnDialog = {
+            step: "naming",
+            captured: code,
+            name: `${baseName}_${itemCount}`,
+            batchMode: true,
           };
           this._render();
         }
@@ -489,7 +480,8 @@ class EspIrMqttCard extends HTMLElement {
     this._batchLearn = {
       active: true,
       baseline: this._getLearnEventMarker(),
-      items: [],
+      itemCount: 0,
+      pendingCode: "",
     };
     this._render();
   }
@@ -499,50 +491,11 @@ class EspIrMqttCard extends HTMLElement {
     this._render();
   }
 
-  _updateBatchItemName(id, value) {
-    if (!this._batchLearn) return;
-    this._batchLearn = {
-      ...this._batchLearn,
-      items: this._batchLearn.items.map((item) => item.id === id ? { ...item, name: value } : item),
-    };
-  }
-
-  _removeBatchItem(id) {
-    if (!this._batchLearn) return;
-    this._batchLearn = {
-      ...this._batchLearn,
-      items: this._batchLearn.items.filter((item) => item.id !== id),
-    };
-    this._render();
-  }
-
   _testPronto(code) {
     if (this._getMqttStatusInfo().connectionState !== "connected" || !code) {
       return;
     }
     this._publish(`${this._config.topic_prefix}/send/pronto`, code);
-  }
-
-  async _saveBatchLearned() {
-    if (!this._batchLearn || this._getMqttStatusInfo().connectionState !== "connected") {
-      return;
-    }
-    const items = this._batchLearn.items
-      .map((item) => ({ ...item, name: (item.name || "").trim() }))
-      .filter((item) => item.name && item.code);
-    if (!items.length) {
-      this._toast(this._t("batchLearnEmpty"));
-      return;
-    }
-    for (const item of items) {
-      await this._publish(`${this._config.topic_prefix}/save_payload`, JSON.stringify({
-        key: item.name,
-        code: item.code,
-      }));
-    }
-    this._toast(this._t("savedAs", { value: `${items.length}` }));
-    this._batchLearn = null;
-    this._render();
   }
 
   _toggleBatchDeleteMode() {
@@ -606,6 +559,7 @@ class EspIrMqttCard extends HTMLElement {
     if (this._getMqttStatusInfo().connectionState !== "connected" || !this._learnDialog) {
       return;
     }
+    const batchMode = !!this._learnDialog.batchMode;
     const value = (this._learnDialog.name || "").trim();
     if (!value) {
       this._toast(this._t("enterKeyName"));
@@ -614,6 +568,12 @@ class EspIrMqttCard extends HTMLElement {
     this._publish(`${this._config.topic_prefix}/save_as`, value);
     this._toast(this._t("savedAs", { value }));
     this._learnDialog = null;
+    if (batchMode && this._batchLearn?.active) {
+      this._batchLearn = {
+        ...this._batchLearn,
+        pendingCode: "",
+      };
+    }
     this._render();
   }
 
@@ -683,7 +643,6 @@ class EspIrMqttCard extends HTMLElement {
     if (!this._batchLearn?.active) {
       return "";
     }
-    const items = this._batchLearn.items || [];
     return `
       <div class="batch-panel">
         <div class="batch-panel-head">
@@ -692,42 +651,11 @@ class EspIrMqttCard extends HTMLElement {
             <div class="batch-panel-text">${this._t("batchLearnWaiting")}</div>
           </div>
           <div class="batch-panel-actions">
-            <button class="primary" id="batch-save-btn" ${mqttConnected ? "" : "disabled"}>${this._t("batchSaveAll")}</button>
             <button class="secondary" id="batch-stop-btn">${this._t("batchStop")}</button>
           </div>
         </div>
-        <div class="batch-items">
-          ${
-            items.length
-              ? items.map((item) => `
-                <div class="batch-item">
-                  <input class="batch-name-input" data-id="${item.id}" value="${item.name || ""}" placeholder="${this._t("placeholder")}" ${mqttConnected ? "" : "disabled"} />
-                  <div class="batch-item-actions">
-                    <button class="secondary batch-test-btn" data-id="${item.id}" ${mqttConnected ? "" : "disabled"}>${this._t("testLearned")}</button>
-                    <button class="secondary batch-remove-btn" data-id="${item.id}">${this._t("removeCaptured")}</button>
-                  </div>
-                </div>
-              `).join("")
-              : `<div class="empty">${this._t("batchLearnEmpty")}</div>`
-          }
-        </div>
       </div>
     `;
-  }
-
-  _saveCurrent() {
-    if (this._getMqttStatusInfo().connectionState !== "connected") {
-      return;
-    }
-    const input = this.shadowRoot?.getElementById("save-name");
-    const value = input?.value?.trim();
-    if (!value) {
-      this._toast(this._t("enterKeyName"));
-      return;
-    }
-    this._publish(`${this._config.topic_prefix}/save_as`, value);
-    input.value = "";
-    this._toast(this._t("savedAs", { value }));
   }
 
   _sendNamed(name) {
@@ -1291,20 +1219,7 @@ class EspIrMqttCard extends HTMLElement {
         this._saveLearnedCode();
       }
     });
-    this.shadowRoot.getElementById("batch-save-btn")?.addEventListener("click", () => this._saveBatchLearned());
     this.shadowRoot.getElementById("batch-stop-btn")?.addEventListener("click", () => this._stopBatchLearning());
-    this.shadowRoot.querySelectorAll(".batch-name-input").forEach((input) => {
-      input.addEventListener("input", (ev) => this._updateBatchItemName(ev.currentTarget.dataset.id, ev.currentTarget.value));
-    });
-    this.shadowRoot.querySelectorAll(".batch-test-btn").forEach((button) => {
-      button.addEventListener("click", (ev) => {
-        const item = this._batchLearn?.items?.find((entry) => entry.id === ev.currentTarget.dataset.id);
-        this._testPronto(item?.code || "");
-      });
-    });
-    this.shadowRoot.querySelectorAll(".batch-remove-btn").forEach((button) => {
-      button.addEventListener("click", (ev) => this._removeBatchItem(ev.currentTarget.dataset.id));
-    });
   }
 }
 
