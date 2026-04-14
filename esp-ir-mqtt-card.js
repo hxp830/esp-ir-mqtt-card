@@ -195,17 +195,14 @@ class EspIrMqttCard extends HTMLElement {
     if (!config.topic_prefix) {
       throw new Error("topic_prefix is required");
     }
-    const language = this._resolveLanguage(config.language);
     const mqttStatusEntity = this._normalizeMqttStatusEntity(config.mqtt_status_entity);
     const learnEventEntity = this._normalizeLearnEventEntity(config.learn_event_entity, config.topic_prefix);
     this._config = {
-      title: EspIrMqttCard.TRANSLATIONS[language].title,
       columns: 3,
       default_example_name: "test_ir",
       learned_entity: EspIrMqttCard.DEFAULT_LEARNED_ENTITY,
       learn_event_entity: learnEventEntity,
       mqtt_status_entity: mqttStatusEntity,
-      language,
       ...config,
       learn_event_entity: learnEventEntity,
       mqtt_status_entity: mqttStatusEntity,
@@ -408,23 +405,24 @@ class EspIrMqttCard extends HTMLElement {
   }
 
   _handleLearnedStateChange(previousValue, nextValue) {
+    const learnedCode = this._getLearnedStateValue().trim();
+
     if (this._batchLearn?.active) {
       const marker = (nextValue || "").trim();
       const baseline = (this._batchLearn.baseline || "").trim();
       if (marker && marker !== baseline && marker !== previousValue) {
-        const code = this._getLearnedStateValue().trim();
-        if (code) {
+        if (learnedCode) {
           const baseName = this._config.default_example_name || "ir_key";
           const itemCount = (this._batchLearn.itemCount || 0) + 1;
           this._batchLearn = {
             ...this._batchLearn,
             baseline: marker,
-            pendingCode: code,
+            pendingCode: learnedCode,
             itemCount,
           };
           this._learnDialog = {
             step: "naming",
-            captured: code,
+            captured: learnedCode,
             name: `${baseName}_${itemCount}`,
             batchMode: true,
           };
@@ -439,14 +437,14 @@ class EspIrMqttCard extends HTMLElement {
 
     const next = (nextValue || "").trim();
     const baseline = (this._learnDialog.baseline || "").trim();
-    if (!next || next === baseline || next === previousValue) {
+    if (!next || next === baseline || next === previousValue || !learnedCode) {
       return;
     }
 
     this._learnDialog = {
       ...this._learnDialog,
       step: "review",
-      captured: next,
+      captured: learnedCode,
     };
   }
 
@@ -600,7 +598,7 @@ class EspIrMqttCard extends HTMLElement {
       `;
     }
 
-    const capturedPreview = (this._learnDialog.captured || "").slice(0, 160);
+    const capturedPreview = (this._learnDialog.captured || this._getLearnedStateValue() || "").slice(0, 160);
     const previewLabel = this._t("learnedPreview");
     if (this._learnDialog.step === "review") {
       return `
