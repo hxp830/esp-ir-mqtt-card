@@ -73,13 +73,15 @@ mqtt:
       unique_id: esp_ir_last_learned
       state_topic: "newchuangan1/ir/stored/last"
 
-  binary_sensor:
-    - name: ESP IR Device Online
-      unique_id: esp_ir_device_online
-      state_topic: "newchuangan1/status"
-      payload_on: "online"
-      payload_off: "offline"
+template:
+  - binary_sensor:
+      - name: ESP IR Device Online
+        unique_id: esp_ir_device_online
+        state: >
+          {{ states('sensor.newchuangan1_mqtt_status') in ['connected', 'online', 'on', 'true', '连接', '已连接', '在线'] }}
 ```
+
+这个模板 `binary_sensor` 会读取 ESPHome 诊断实体 `sensor.newchuangan1_mqtt_status`，再转换成卡片更容易判断的 `on/off` 状态。
 
 ### 2. 添加卡片
 
@@ -103,6 +105,8 @@ language: zh
 可选配置：
 
 - `mqtt_status_entity`：用于显示 MQTT 连接状态，建议填写 `binary_sensor.esp_ir_device_online`
+
+这里推荐让卡片读取模板 `binary_sensor`，而不是直接读取文本 `sensor`。这样卡片看到的是稳定的 `on/off`，更适合显示绿色或灰色状态点。
 
 配置后，卡片顶部会显示一个状态圆点：
 

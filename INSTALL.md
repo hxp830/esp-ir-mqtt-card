@@ -42,13 +42,15 @@ mqtt:
       unique_id: esp_ir_last_learned
       state_topic: "newchuangan1/ir/stored/last"
 
-  binary_sensor:
-    - name: ESP IR Device Online
-      unique_id: esp_ir_device_online
-      state_topic: "newchuangan1/status"
-      payload_on: "online"
-      payload_off: "offline"
+template:
+  - binary_sensor:
+      - name: ESP IR Device Online
+        unique_id: esp_ir_device_online
+        state: >
+          {{ states('sensor.newchuangan1_mqtt_status') in ['connected', 'online', 'on', 'true', '连接', '已连接', '在线'] }}
 ```
+
+This template binary sensor wraps the ESPHome diagnostic entity `sensor.newchuangan1_mqtt_status` and converts it into a reliable `on/off` state for the card.
 
 5. Add the card:
 

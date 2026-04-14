@@ -73,13 +73,15 @@ mqtt:
       unique_id: esp_ir_last_learned
       state_topic: "newchuangan1/ir/stored/last"
 
-  binary_sensor:
-    - name: ESP IR Device Online
-      unique_id: esp_ir_device_online
-      state_topic: "newchuangan1/status"
-      payload_on: "online"
-      payload_off: "offline"
+template:
+  - binary_sensor:
+      - name: ESP IR Device Online
+        unique_id: esp_ir_device_online
+        state: >
+          {{ states('sensor.newchuangan1_mqtt_status') in ['connected', 'online', 'on', 'true', '连接', '已连接', '在线'] }}
 ```
+
+Этот шаблонный `binary_sensor` читает диагностическую сущность ESPHome `sensor.newchuangan1_mqtt_status` и преобразует ее в надежное состояние `on/off` для карточки.
 
 ### 2. Добавьте карточку
 
@@ -103,6 +105,8 @@ language: ru
 Необязательная настройка:
 
 - `mqtt_status_entity`: сущность для отображения статуса MQTT, например `binary_sensor.esp_ir_device_online`
+
+Рекомендуемый вариант: пусть карточка читает шаблонный `binary_sensor`, а не текстовый `sensor`. Так карточка получает стабильное состояние `on/off` для зеленого или серого индикатора.
 
 После настройки в верхней части карточки появится индикатор:
 

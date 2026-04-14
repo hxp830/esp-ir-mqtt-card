@@ -76,13 +76,15 @@ mqtt:
       unique_id: esp_ir_last_learned
       state_topic: "newchuangan1/ir/stored/last"
 
-  binary_sensor:
-    - name: ESP IR Device Online
-      unique_id: esp_ir_device_online
-      state_topic: "newchuangan1/status"
-      payload_on: "online"
-      payload_off: "offline"
+template:
+  - binary_sensor:
+      - name: ESP IR Device Online
+        unique_id: esp_ir_device_online
+        state: >
+          {{ states('sensor.newchuangan1_mqtt_status') in ['connected', 'online', 'on', 'true', '连接', '已连接', '在线'] }}
 ```
+
+This template binary sensor reads the ESPHome diagnostic entity `sensor.newchuangan1_mqtt_status` and turns it into a reliable `on/off` state for the card.
 
 ### 2. Lovelace card
 
@@ -106,6 +108,8 @@ Supported `language` values:
 Optional config:
 
 - `mqtt_status_entity`: entity used to show MQTT connection status, for example `binary_sensor.esp_ir_device_online`
+
+Recommended setup: let the card read a template `binary_sensor` instead of the raw text `sensor`. That gives the card a stable `on/off` state for the green/gray status dot.
 
 When configured, the card header shows a status dot:
 
