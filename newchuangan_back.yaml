@@ -78,6 +78,7 @@ remote_receiver:
                   - lambda: |-
                       id(last_learned_pronto) = x.data;
                       id(last_learned_at) = millis();
+                      id(ir_learn_event).publish_state(to_string(id(last_learn_at)));
                   - logger.log:
                       format: "学习成功，Pronto: %s"
                       args: ["x.data.c_str()"]
@@ -159,6 +160,11 @@ text_sensor:
     lambda: |-
       return {id(mqtt_client_id_cfg).state};
     update_interval: 5s
+  - platform: template
+    name: "IR Learn Event"
+    id: ir_learn_event
+    entity_category: diagnostic
+    update_interval: never
 
 text:
   - platform: template

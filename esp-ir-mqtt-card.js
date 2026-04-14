@@ -3,6 +3,7 @@ class EspIrMqttCard extends HTMLElement {
   static LEGACY_MQTT_STATUS_ENTITIES = new Set([
     "binary_sensor.esp_ir_device_online",
   ]);
+  static DEFAULT_LEARNED_ENTITY = "sensor.esp_ir_last_learned";
 
   static TRANSLATIONS = {
     en: {
@@ -41,6 +42,7 @@ class EspIrMqttCard extends HTMLElement {
       learnedEntityRequired: "learned_entity is required",
       learnedUnavailable: "Learned entity <strong>{entity}</strong> is unavailable. Please create it first.",
       learnedPreview: "Learned code preview:",
+      editorLearnEventEntity: "Learn event entity",
       editorTitle: "Title",
       editorStoreEntity: "Store entity",
       editorLearnedEntity: "Learned entity",
@@ -86,6 +88,7 @@ class EspIrMqttCard extends HTMLElement {
       learnedEntityRequired: "learned_entity 是必填项",
       learnedUnavailable: "学习实体 <strong>{entity}</strong> 当前不可用。请先创建它。",
       learnedPreview: "学习结果预览：",
+      editorLearnEventEntity: "学习事件实体",
       editorTitle: "标题",
       editorStoreEntity: "存储实体",
       editorLearnedEntity: "学习结果实体",
@@ -131,6 +134,7 @@ class EspIrMqttCard extends HTMLElement {
       learnedEntityRequired: "learned_entity обязателен",
       learnedUnavailable: "Сущность изученного кода <strong>{entity}</strong> недоступна. Сначала создайте ее.",
       learnedPreview: "Предпросмотр изученного кода:",
+      editorLearnEventEntity: "Сущность события обучения",
       editorTitle: "Заголовок",
       editorStoreEntity: "Сущность хранилища",
       editorLearnedEntity: "Сущность изученного кода",
@@ -149,7 +153,8 @@ class EspIrMqttCard extends HTMLElement {
   static getStubConfig() {
     return {
       store_entity: "sensor.esp_ir_store",
-      learned_entity: "sensor.esp_ir_last_learned",
+      learned_entity: EspIrMqttCard.DEFAULT_LEARNED_ENTITY,
+      learn_event_entity: "",
       mqtt_status_entity: EspIrMqttCard.DEFAULT_MQTT_STATUS_ENTITY,
       topic_prefix: "newchuangan1/ir",
       title: "红外按键面板",
@@ -165,14 +170,17 @@ class EspIrMqttCard extends HTMLElement {
     }
     const language = this._resolveLanguage(config.language);
     const mqttStatusEntity = this._normalizeMqttStatusEntity(config.mqtt_status_entity);
+    const learnEventEntity = this._normalizeLearnEventEntity(config.learn_event_entity, config.topic_prefix);
     this._config = {
       title: EspIrMqttCard.TRANSLATIONS[language].title,
       columns: 3,
       default_example_name: "test_ir",
-      learned_entity: "sensor.esp_ir_last_learned",
+      learned_entity: EspIrMqttCard.DEFAULT_LEARNED_ENTITY,
+      learn_event_entity: learnEventEntity,
       mqtt_status_entity: mqttStatusEntity,
       language,
       ...config,
+      learn_event_entity: learnEventEntity,
       mqtt_status_entity: mqttStatusEntity,
     };
     this._pendingDelete = null;
@@ -184,9 +192,9 @@ class EspIrMqttCard extends HTMLElement {
   }
 
   set hass(hass) {
-    const previousLearned = this._getLearnedStateValue();
+    const previousLearned = this._getLearnEventMarker();
     this._hass = hass;
-    this._handleLearnedStateChange(previousLearned, this._getLearnedStateValue());
+    this._handleLearnedStateChange(previousLearned, this._getLearnEventMarker());
     this._render();
   }
 
@@ -221,8 +229,22 @@ class EspIrMqttCard extends HTMLElement {
       : null;
   }
 
+  _getLearnEventEntity() {
+    return this._config?.learn_event_entity
+      ? this._hass?.states?.[this._config.learn_event_entity]
+      : null;
+  }
+
   _getLearnedStateValue() {
     return (this._getLearnedEntity()?.state || "").toString();
+  }
+
+  _getLearnEventMarker() {
+    const eventEntity = this._getLearnEventEntity();
+    if (eventEntity) {
+      return (eventEntity.state || "").toString();
+    }
+    return this._getLearnedStateValue();
   }
 
   _normalizeMqttStatusEntity(entityId) {
@@ -231,6 +253,18 @@ class EspIrMqttCard extends HTMLElement {
       return EspIrMqttCard.DEFAULT_MQTT_STATUS_ENTITY;
     }
     return normalized;
+  }
+
+  _normalizeLearnEventEntity(entityId, topicPrefix) {
+    const normalized = (entityId || "").trim();
+    if (normalized) {
+      return normalized;
+    }
+    const prefixRoot = ((topicPrefix || "").split("/")[0] || "").trim();
+    if (!prefixRoot) {
+      return "";
+    }
+    return `sensor.${prefixRoot}_ir_learn_event`;
   }
 
   _getMqttStatusEntity() {
@@ -371,7 +405,7 @@ class EspIrMqttCard extends HTMLElement {
     }
     this._learnDialog = {
       step: "waiting",
-      baseline: this._getLearnedStateValue(),
+      baseline: this._getLearnEventMarker(),
       captured: "",
       name: this._config.default_example_name || "",
     };
@@ -1025,7 +1059,8 @@ class EspIrMqttCardEditor extends HTMLElement {
     const config = {
       columns: 3,
       default_example_name: "test_ir",
-      learned_entity: "sensor.esp_ir_last_learned",
+      learned_entity: EspIrMqttCard.DEFAULT_LEARNED_ENTITY,
+      learn_event_entity: this._config.learn_event_entity || "",
       mqtt_status_entity: EspIrMqttCard.DEFAULT_MQTT_STATUS_ENTITY,
       ...this._config,
     };
@@ -1072,6 +1107,10 @@ class EspIrMqttCardEditor extends HTMLElement {
         <div class="field">
           <label>${this._t("editorLearnedEntity")}</label>
           <input value="${config.learned_entity || ""}" configValue="learned_entity" />
+        </div>
+        <div class="field">
+          <label>${this._t("editorLearnEventEntity")}</label>
+          <input value="${config.learn_event_entity || ""}" configValue="learn_event_entity" />
         </div>
         <div class="field">
           <label>${this._t("editorMqttStatusEntity")}</label>
