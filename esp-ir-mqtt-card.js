@@ -25,6 +25,7 @@ class EspIrMqttCard extends HTMLElement {
       learnQuestion: "Save this IR command?",
       learnNamePrompt: "Enter a name for this IR command",
       confirmSaveLearned: "Save Command",
+      testLearned: "Test Command",
       cancel: "Cancel",
       sendLast: "Send Last Learned Code",
       unavailable: "Store entity <strong>{entity}</strong> is unavailable. Please create the MQTT sensor first, then reload Home Assistant.",
@@ -70,6 +71,7 @@ class EspIrMqttCard extends HTMLElement {
       learnQuestion: "是否保存这个红外命令？",
       learnNamePrompt: "请输入这个红外命令的名称",
       confirmSaveLearned: "确认学习",
+      testLearned: "测试这个命令",
       cancel: "取消",
       sendLast: "发送最近学习结果",
       unavailable: "存储实体 <strong>{entity}</strong> 当前不可用。请先创建 MQTT 传感器，然后重载 Home Assistant。",
@@ -115,6 +117,7 @@ class EspIrMqttCard extends HTMLElement {
       learnQuestion: "Сохранить эту ИК-команду?",
       learnNamePrompt: "Введите имя для этой ИК-команды",
       confirmSaveLearned: "Сохранить команду",
+      testLearned: "Проверить команду",
       cancel: "Отмена",
       sendLast: "Отправить последний код",
       unavailable: "Сущность хранилища <strong>{entity}</strong> недоступна. Сначала создайте MQTT-сенсор, затем перезагрузите Home Assistant.",
@@ -165,14 +168,17 @@ class EspIrMqttCard extends HTMLElement {
     if (!config.topic_prefix) {
       throw new Error("topic_prefix is required");
     }
+    const language = this._resolveLanguage(config.language);
     const mqttStatusEntity = this._normalizeMqttStatusEntity(config.mqtt_status_entity);
     const learnEventEntity = this._normalizeLearnEventEntity(config.learn_event_entity, config.topic_prefix);
     this._config = {
+      title: EspIrMqttCard.TRANSLATIONS[language].title,
       columns: 3,
       default_example_name: "test_ir",
       learned_entity: EspIrMqttCard.DEFAULT_LEARNED_ENTITY,
       learn_event_entity: learnEventEntity,
       mqtt_status_entity: mqttStatusEntity,
+      language,
       ...config,
       learn_event_entity: learnEventEntity,
       mqtt_status_entity: mqttStatusEntity,
@@ -186,15 +192,9 @@ class EspIrMqttCard extends HTMLElement {
   }
 
   set hass(hass) {
-    const previousLearnMarker = this._getLearnEventMarker();
-    const previousLearnedCode = this._getResolvedLearnedCode();
+    const previousLearned = this._getLearnEventMarker();
     this._hass = hass;
-    this._handleLearnedStateChange(
-      previousLearnMarker,
-      this._getLearnEventMarker(),
-      previousLearnedCode,
-      this._getResolvedLearnedCode(),
-    );
+    this._handleLearnedStateChange(previousLearned, this._getLearnEventMarker());
     this._render();
   }
 
@@ -237,16 +237,6 @@ class EspIrMqttCard extends HTMLElement {
 
   _getLearnedStateValue() {
     return (this._getLearnedEntity()?.state || "").toString();
-  }
-
-  _isValidLearnedCode(value) {
-    const normalized = (value || "").toString().trim().toLowerCase();
-    return !!normalized && !["unknown", "unavailable", "none", "null"].includes(normalized);
-  }
-
-  _getResolvedLearnedCode() {
-    const learnedCode = this._getLearnedStateValue().trim();
-    return this._isValidLearnedCode(learnedCode) ? learnedCode : "";
   }
 
   _getLearnEventMarker() {
@@ -387,38 +377,21 @@ class EspIrMqttCard extends HTMLElement {
     return [...keys].sort((a, b) => a.localeCompare(b));
   }
 
-  _handleLearnedStateChange(previousValue, nextValue, previousLearnedCode = "", nextLearnedCode = "") {
-    const learnedCode = (nextLearnedCode || "").trim();
-    const marker = (nextValue || "").trim();
-
+  _handleLearnedStateChange(previousValue, nextValue) {
     if (!this._learnDialog || this._learnDialog.step !== "waiting") {
       return;
     }
 
-    const next = marker;
+    const next = (nextValue || "").trim();
     const baseline = (this._learnDialog.baseline || "").trim();
-    const markerChanged = next && next !== baseline && next !== previousValue;
-    const learnedCodeChanged =
-      !!learnedCode &&
-      learnedCode !== (previousLearnedCode || "").trim() &&
-      learnedCode !== (this._learnDialog.captured || "").trim();
-    const awaitingCode = !!this._learnDialog.awaitingCode;
-    if (markerChanged) {
-      this._learnDialog = {
-        ...this._learnDialog,
-        baseline: next,
-        awaitingCode: true,
-      };
-    }
-    if ((!awaitingCode && !markerChanged && !learnedCodeChanged) || !learnedCode) {
+    if (!next || next === baseline || next === previousValue) {
       return;
     }
 
     this._learnDialog = {
       ...this._learnDialog,
       step: "review",
-      captured: learnedCode,
-      awaitingCode: false,
+      captured: next,
     };
   }
 
@@ -435,7 +408,6 @@ class EspIrMqttCard extends HTMLElement {
       baseline: this._getLearnEventMarker(),
       captured: "",
       name: this._config.default_example_name || "",
-      awaitingCode: false,
     };
     this._render();
   }
@@ -505,10 +477,7 @@ class EspIrMqttCard extends HTMLElement {
       `;
     }
 
-    const capturedPreview = (this._learnDialog.captured || this._getLearnedStateValue() || "").slice(0, 160);
-    const resolvedPreview = capturedPreview && this._isValidLearnedCode(capturedPreview)
-      ? capturedPreview
-      : this._getResolvedLearnedCode().slice(0, 160);
+    const capturedPreview = (this._learnDialog.captured || "").slice(0, 160);
     const previewLabel = this._t("learnedPreview");
     if (this._learnDialog.step === "review") {
       return `
@@ -518,9 +487,10 @@ class EspIrMqttCard extends HTMLElement {
             <div class="learn-modal-text">${this._t("learnQuestion")}</div>
             <div class="learn-modal-preview">
               <strong>${previewLabel}</strong><br />
-              <code>${resolvedPreview}</code>
+              <code>${capturedPreview}</code>
             </div>
             <div class="learn-modal-actions">
+              <button class="secondary" id="learn-test-btn" ${mqttConnected ? "" : "disabled"}>${this._t("testLearned")}</button>
               <button class="primary" id="learn-save-step-btn" ${mqttConnected ? "" : "disabled"}>${this._t("confirmSaveLearned")}</button>
               <button class="secondary" id="learn-cancel-btn">${cancel}</button>
             </div>
@@ -536,16 +506,32 @@ class EspIrMqttCard extends HTMLElement {
           <div class="learn-modal-text">${this._t("learnNamePrompt")}</div>
           <div class="learn-modal-preview">
             <strong>${previewLabel}</strong><br />
-            <code>${resolvedPreview}</code>
+            <code>${capturedPreview}</code>
           </div>
           <input id="learn-name" value="${this._learnDialog.name || ""}" placeholder="${this._t("placeholder")}" ${mqttConnected ? "" : "disabled"} />
           <div class="learn-modal-actions">
             <button class="primary" id="learn-confirm-btn" ${mqttConnected ? "" : "disabled"}>${this._t("confirmSaveLearned")}</button>
+            <button class="secondary" id="learn-test-btn" ${mqttConnected ? "" : "disabled"}>${this._t("testLearned")}</button>
             <button class="secondary" id="learn-cancel-btn">${cancel}</button>
           </div>
         </div>
       </div>
     `;
+  }
+
+  _saveCurrent() {
+    if (this._getMqttStatusInfo().connectionState !== "connected") {
+      return;
+    }
+    const input = this.shadowRoot?.getElementById("save-name");
+    const value = input?.value?.trim();
+    if (!value) {
+      this._toast(this._t("enterKeyName"));
+      return;
+    }
+    this._publish(`${this._config.topic_prefix}/save_as`, value);
+    input.value = "";
+    this._toast(this._t("savedAs", { value }));
   }
 
   _sendNamed(name) {
@@ -996,6 +982,7 @@ class EspIrMqttCard extends HTMLElement {
       button.addEventListener("click", (ev) => this._deleteNamed(ev.currentTarget.dataset.key));
     });
     this.shadowRoot.getElementById("learn-cancel-btn")?.addEventListener("click", () => this._cancelLearning());
+    this.shadowRoot.getElementById("learn-test-btn")?.addEventListener("click", () => this._sendLast());
     this.shadowRoot.getElementById("learn-save-step-btn")?.addEventListener("click", () => this._moveLearningToNaming());
     this.shadowRoot.getElementById("learn-confirm-btn")?.addEventListener("click", () => this._saveLearnedCode());
     this.shadowRoot.getElementById("learn-name")?.addEventListener("input", (ev) => this._updateLearnName(ev.currentTarget.value));
