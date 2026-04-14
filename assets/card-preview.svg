@@ -15,8 +15,12 @@
   <rect x="180" y="120" width="1080" height="650" rx="28" fill="url(#card)" stroke="#B9E8DD" stroke-width="2"/>
   <text x="230" y="190" fill="#173533" font-family="Segoe UI, Arial, sans-serif" font-size="40" font-weight="700">红外按键面板</text>
   <text x="230" y="232" fill="#5B7974" font-family="Segoe UI, Arial, sans-serif" font-size="22">先在 ESPHome 上学习红外，再在 Home Assistant 里保存、发射和删除按键。</text>
-  <rect x="860" y="160" width="350" height="44" rx="22" fill="#FFFFFF" stroke="#CBEDE5"/>
-  <text x="892" y="188" fill="#31534E" font-family="Segoe UI, Arial, sans-serif" font-size="18">存储实体：sensor.esp_ir_store | 当前状态：3</text>
+  <rect x="860" y="150" width="350" height="70" rx="22" fill="#FFFFFF" stroke="#CBEDE5"/>
+  <text x="892" y="180" fill="#31534E" font-family="Segoe UI, Arial, sans-serif" font-size="18">存储实体：sensor.esp_ir_store | 当前状态：3</text>
+  <circle cx="894" cy="202" r="5" fill="#22C55E"/>
+  <circle cx="894" cy="202" r="8" fill="#22C55E" fill-opacity=".16"/>
+  <text x="910" y="208" fill="#5B7974" font-family="Segoe UI, Arial, sans-serif" font-size="16">MQTT：</text>
+  <text x="964" y="208" fill="#173533" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">连接</text>
   <rect x="230" y="280" width="430" height="58" rx="16" fill="#FFFFFF" stroke="#D5ECE7"/>
   <text x="255" y="317" fill="#7C9692" font-family="Segoe UI, Arial, sans-serif" font-size="22">输入按键名称，例如 空调打开 或 ac_power_on</text>
   <rect x="680" y="280" width="250" height="58" rx="16" fill="#0F766E"/>
