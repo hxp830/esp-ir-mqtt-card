@@ -186,9 +186,15 @@ class EspIrMqttCard extends HTMLElement {
   }
 
   set hass(hass) {
-    const previousLearned = this._getLearnEventMarker();
+    const previousLearnMarker = this._getLearnEventMarker();
+    const previousLearnedCode = this._getResolvedLearnedCode();
     this._hass = hass;
-    this._handleLearnedStateChange(previousLearned, this._getLearnEventMarker());
+    this._handleLearnedStateChange(
+      previousLearnMarker,
+      this._getLearnEventMarker(),
+      previousLearnedCode,
+      this._getResolvedLearnedCode(),
+    );
     this._render();
   }
 
@@ -381,8 +387,8 @@ class EspIrMqttCard extends HTMLElement {
     return [...keys].sort((a, b) => a.localeCompare(b));
   }
 
-  _handleLearnedStateChange(previousValue, nextValue) {
-    const learnedCode = this._getResolvedLearnedCode();
+  _handleLearnedStateChange(previousValue, nextValue, previousLearnedCode = "", nextLearnedCode = "") {
+    const learnedCode = (nextLearnedCode || "").trim();
     const marker = (nextValue || "").trim();
 
     if (!this._learnDialog || this._learnDialog.step !== "waiting") {
@@ -392,7 +398,11 @@ class EspIrMqttCard extends HTMLElement {
     const next = marker;
     const baseline = (this._learnDialog.baseline || "").trim();
     const markerChanged = next && next !== baseline && next !== previousValue;
-    const awaitingCode = this._learnDialog.awaitingCode;
+    const learnedCodeChanged =
+      !!learnedCode &&
+      learnedCode !== (previousLearnedCode || "").trim() &&
+      learnedCode !== (this._learnDialog.captured || "").trim();
+    const awaitingCode = !!this._learnDialog.awaitingCode;
     if (markerChanged) {
       this._learnDialog = {
         ...this._learnDialog,
@@ -400,7 +410,7 @@ class EspIrMqttCard extends HTMLElement {
         awaitingCode: true,
       };
     }
-    if ((!awaitingCode && !markerChanged) || !learnedCode) {
+    if ((!awaitingCode && !markerChanged && !learnedCodeChanged) || !learnedCode) {
       return;
     }
 
