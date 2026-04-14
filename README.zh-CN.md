@@ -87,7 +87,7 @@ mqtt:
 type: custom:esp-ir-mqtt-card
 title: 红外按键面板
 store_entity: sensor.esp_ir_store
-mqtt_status_entity: sensor.newchuangan1_mqtt_status
+mqtt_status_entity: binary_sensor.esp_ir_device_online
 topic_prefix: newchuangan1/ir
 columns: 3
 default_example_name: test_ir
@@ -102,7 +102,7 @@ language: zh
 
 可选配置：
 
-- `mqtt_status_entity`：用于显示 MQTT 连接状态，建议填写 `sensor.newchuangan1_mqtt_status`
+- `mqtt_status_entity`：用于显示 MQTT 连接状态，建议填写 `binary_sensor.esp_ir_device_online`
 
 配置后，卡片顶部会显示一个状态圆点：
 

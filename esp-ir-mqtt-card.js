@@ -84,7 +84,7 @@ class EspIrMqttCard extends HTMLElement {
   static getStubConfig() {
     return {
       store_entity: "sensor.esp_ir_store",
-      mqtt_status_entity: "sensor.newchuangan1_mqtt_status",
+      mqtt_status_entity: "binary_sensor.esp_ir_device_online",
       topic_prefix: "newchuangan1/ir",
       title: "红外按键面板",
     };
@@ -102,7 +102,7 @@ class EspIrMqttCard extends HTMLElement {
       title: EspIrMqttCard.TRANSLATIONS[language].title,
       columns: 3,
       default_example_name: "test_ir",
-      mqtt_status_entity: "sensor.newchuangan1_mqtt_status",
+      mqtt_status_entity: "binary_sensor.esp_ir_device_online",
       language,
       ...config,
     };
