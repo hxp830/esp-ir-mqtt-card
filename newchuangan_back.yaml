@@ -534,7 +534,6 @@ mqtt:
                                 root["status"] = "error";
                                 root["message"] = "key not found";
                                 root["key"] = x;
-
 # API 配置 - Home Assistant集成必需
 api:
   reboot_timeout: 0s

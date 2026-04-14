@@ -56,8 +56,12 @@ This template binary sensor wraps the ESPHome diagnostic entity `sensor.newchuan
 
 ```yaml
 type: custom:esp-ir-mqtt-card
-title: ESP IR Remote
+title: ESP IR Remote Panel
 store_entity: sensor.esp_ir_store
+mqtt_status_entity: binary_sensor.esp_ir_mqtt_online
+learned_entity: sensor.esp_ir_last_learned
 topic_prefix: newchuangan1/ir
 columns: 3
+default_example_name: test_ir
+language: en
 ```
