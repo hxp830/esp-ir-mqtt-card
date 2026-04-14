@@ -78,7 +78,7 @@ remote_receiver:
                   - lambda: |-
                       id(last_learned_pronto) = x.data;
                       id(last_learned_at) = millis();
-                      id(ir_learn_event).publish_state(to_string(id(last_learn_at)));
+                      id(ir_learn_event).publish_state(to_string(id(last_learned_at)));
                   - logger.log:
                       format: "学习成功，Pronto: %s"
                       args: ["x.data.c_str()"]
@@ -357,6 +357,31 @@ mqtt:
                           root["key"] = x;
                           root["code"] = id(last_learned_pronto);
                           root["store_topic"] = "newchuangan1/ir/store";
+    - topic: newchuangan1/ir/save_payload
+      then:
+        - lambda: |-
+            DynamicJsonDocument input(8192);
+            auto err = deserializeJson(input, x);
+            if (err || !input["key"].is<const char *>() || !input["code"].is<const char *>()) {
+              return;
+            }
+            const std::string key = input["key"].as<const char *>();
+            const std::string code = input["code"].as<const char *>();
+            DynamicJsonDocument doc(8192);
+            if (!id(stored_ir_map).state.empty()) {
+              deserializeJson(doc, id(stored_ir_map).state);
+            }
+            doc[key] = code;
+            std::string output;
+            serializeJson(doc, output);
+            id(mqtt_client).publish("newchuangan1/ir/store", output, 0, true);
+            DynamicJsonDocument result(512);
+            result["status"] = "success";
+            result["key"] = key;
+            result["code"] = code;
+            std::string result_output;
+            serializeJson(result, result_output);
+            id(mqtt_client).publish("newchuangan1/ir/save_result", result_output, 0, false);
     - topic: newchuangan1/ir/send/named
       then:
         - if:

@@ -27,6 +27,17 @@ class EspIrMqttCard extends HTMLElement {
       confirmSaveLearned: "Save Command",
       testLearned: "Test Command",
       cancel: "Cancel",
+      batchLearn: "Batch Learn",
+      batchLearning: "Batch Learning",
+      batchLearnWaiting: "Keep pressing remote buttons. Each captured IR code will be added below.",
+      batchLearnEmpty: "No IR codes captured yet.",
+      batchSaveAll: "Save All",
+      batchStop: "Stop",
+      batchDelete: "Batch Delete",
+      batchDeleteConfirm: "Delete Selected",
+      batchDeleteCancel: "Cancel Selection",
+      selectedCount: "{count} selected",
+      removeCaptured: "Remove",
       sendLast: "Send Last Learned Code",
       unavailable: "Store entity <strong>{entity}</strong> is unavailable. Please create the MQTT sensor first, then reload Home Assistant.",
       sendTopic: "Send topic:",
@@ -73,6 +84,17 @@ class EspIrMqttCard extends HTMLElement {
       confirmSaveLearned: "确认学习",
       testLearned: "测试这个命令",
       cancel: "取消",
+      batchLearn: "批量学习",
+      batchLearning: "批量学习中",
+      batchLearnWaiting: "持续按遥控器按键即可，检测到的红外命令会不断追加到下面。",
+      batchLearnEmpty: "还没有捕获到新的红外命令。",
+      batchSaveAll: "统一保存",
+      batchStop: "停止",
+      batchDelete: "批量删除",
+      batchDeleteConfirm: "删除所选",
+      batchDeleteCancel: "取消选择",
+      selectedCount: "已选择 {count} 项",
+      removeCaptured: "移除",
       sendLast: "发送最近学习结果",
       unavailable: "存储实体 <strong>{entity}</strong> 当前不可用。请先创建 MQTT 传感器，然后重载 Home Assistant。",
       sendTopic: "发送主题：",
@@ -119,6 +141,17 @@ class EspIrMqttCard extends HTMLElement {
       confirmSaveLearned: "Сохранить команду",
       testLearned: "Проверить команду",
       cancel: "Отмена",
+      batchLearn: "Пакетное обучение",
+      batchLearning: "Пакетное обучение",
+      batchLearnWaiting: "Продолжайте нажимать кнопки на пульте. Каждый принятый ИК-код будет добавлен в список ниже.",
+      batchLearnEmpty: "Пока не получено ни одного ИК-кода.",
+      batchSaveAll: "Сохранить все",
+      batchStop: "Остановить",
+      batchDelete: "Массовое удаление",
+      batchDeleteConfirm: "Удалить выбранные",
+      batchDeleteCancel: "Отменить выбор",
+      selectedCount: "Выбрано: {count}",
+      removeCaptured: "Убрать",
       sendLast: "Отправить последний код",
       unavailable: "Сущность хранилища <strong>{entity}</strong> недоступна. Сначала создайте MQTT-сенсор, затем перезагрузите Home Assistant.",
       sendTopic: "Тема отправки:",
@@ -185,6 +218,9 @@ class EspIrMqttCard extends HTMLElement {
     };
     this._pendingDelete = null;
     this._learnDialog = null;
+    this._batchLearn = null;
+    this._batchDeleteMode = false;
+    this._selectedKeys = new Set();
     if (!this.shadowRoot) {
       this.attachShadow({ mode: "open" });
     }
@@ -378,6 +414,31 @@ class EspIrMqttCard extends HTMLElement {
   }
 
   _handleLearnedStateChange(previousValue, nextValue) {
+    if (this._batchLearn?.active) {
+      const marker = (nextValue || "").trim();
+      const baseline = (this._batchLearn.baseline || "").trim();
+      if (marker && marker !== baseline && marker !== previousValue) {
+        const code = this._getLearnedStateValue().trim();
+        if (code) {
+          const itemNumber = (this._batchLearn.items?.length || 0) + 1;
+          const baseName = this._config.default_example_name || "ir_key";
+          this._batchLearn = {
+            ...this._batchLearn,
+            baseline: marker,
+            items: [
+              ...this._batchLearn.items,
+              {
+                id: `${Date.now()}_${itemNumber}`,
+                code,
+                name: `${baseName}_${itemNumber}`,
+              },
+            ],
+          };
+          this._render();
+        }
+      }
+    }
+
     if (!this._learnDialog || this._learnDialog.step !== "waiting") {
       return;
     }
@@ -414,6 +475,105 @@ class EspIrMqttCard extends HTMLElement {
 
   _cancelLearning() {
     this._learnDialog = null;
+    this._render();
+  }
+
+  _startBatchLearning() {
+    if (this._getMqttStatusInfo().connectionState !== "connected") {
+      return;
+    }
+    if (!this._getLearnedEntity()) {
+      this._toast(this._t("learnedUnavailable", { entity: this._config.learned_entity }).replace(/<[^>]+>/g, ""));
+      return;
+    }
+    this._batchLearn = {
+      active: true,
+      baseline: this._getLearnEventMarker(),
+      items: [],
+    };
+    this._render();
+  }
+
+  _stopBatchLearning() {
+    this._batchLearn = null;
+    this._render();
+  }
+
+  _updateBatchItemName(id, value) {
+    if (!this._batchLearn) return;
+    this._batchLearn = {
+      ...this._batchLearn,
+      items: this._batchLearn.items.map((item) => item.id === id ? { ...item, name: value } : item),
+    };
+  }
+
+  _removeBatchItem(id) {
+    if (!this._batchLearn) return;
+    this._batchLearn = {
+      ...this._batchLearn,
+      items: this._batchLearn.items.filter((item) => item.id !== id),
+    };
+    this._render();
+  }
+
+  _testPronto(code) {
+    if (this._getMqttStatusInfo().connectionState !== "connected" || !code) {
+      return;
+    }
+    this._publish(`${this._config.topic_prefix}/send/pronto`, code);
+  }
+
+  async _saveBatchLearned() {
+    if (!this._batchLearn || this._getMqttStatusInfo().connectionState !== "connected") {
+      return;
+    }
+    const items = this._batchLearn.items
+      .map((item) => ({ ...item, name: (item.name || "").trim() }))
+      .filter((item) => item.name && item.code);
+    if (!items.length) {
+      this._toast(this._t("batchLearnEmpty"));
+      return;
+    }
+    for (const item of items) {
+      await this._publish(`${this._config.topic_prefix}/save_payload`, JSON.stringify({
+        key: item.name,
+        code: item.code,
+      }));
+    }
+    this._toast(this._t("savedAs", { value: `${items.length}` }));
+    this._batchLearn = null;
+    this._render();
+  }
+
+  _toggleBatchDeleteMode() {
+    this._batchDeleteMode = !this._batchDeleteMode;
+    if (!this._batchDeleteMode) {
+      this._selectedKeys = new Set();
+    }
+    this._render();
+  }
+
+  _toggleKeySelection(key) {
+    if (!this._batchDeleteMode) return;
+    if (this._selectedKeys.has(key)) {
+      this._selectedKeys.delete(key);
+    } else {
+      this._selectedKeys.add(key);
+    }
+    this._render();
+  }
+
+  async _deleteSelectedKeys() {
+    if (!this._batchDeleteMode || !this._selectedKeys.size) {
+      return;
+    }
+    const keys = [...this._selectedKeys];
+    for (const key of keys) {
+      await this._publish(`${this._config.topic_prefix}/delete`, key);
+    }
+    this._selectedKeys = new Set();
+    this._batchDeleteMode = false;
+    this._pendingDelete = null;
     this._render();
   }
 
@@ -519,6 +679,42 @@ class EspIrMqttCard extends HTMLElement {
     `;
   }
 
+  _renderBatchLearnPanel(mqttConnected) {
+    if (!this._batchLearn?.active) {
+      return "";
+    }
+    const items = this._batchLearn.items || [];
+    return `
+      <div class="batch-panel">
+        <div class="batch-panel-head">
+          <div>
+            <div class="batch-panel-title">${this._t("batchLearning")}</div>
+            <div class="batch-panel-text">${this._t("batchLearnWaiting")}</div>
+          </div>
+          <div class="batch-panel-actions">
+            <button class="primary" id="batch-save-btn" ${mqttConnected ? "" : "disabled"}>${this._t("batchSaveAll")}</button>
+            <button class="secondary" id="batch-stop-btn">${this._t("batchStop")}</button>
+          </div>
+        </div>
+        <div class="batch-items">
+          ${
+            items.length
+              ? items.map((item) => `
+                <div class="batch-item">
+                  <input class="batch-name-input" data-id="${item.id}" value="${item.name || ""}" placeholder="${this._t("placeholder")}" ${mqttConnected ? "" : "disabled"} />
+                  <div class="batch-item-actions">
+                    <button class="secondary batch-test-btn" data-id="${item.id}" ${mqttConnected ? "" : "disabled"}>${this._t("testLearned")}</button>
+                    <button class="secondary batch-remove-btn" data-id="${item.id}">${this._t("removeCaptured")}</button>
+                  </div>
+                </div>
+              `).join("")
+              : `<div class="empty">${this._t("batchLearnEmpty")}</div>`
+          }
+        </div>
+      </div>
+    `;
+  }
+
   _saveCurrent() {
     if (this._getMqttStatusInfo().connectionState !== "connected") {
       return;
@@ -591,7 +787,12 @@ class EspIrMqttCard extends HTMLElement {
     const mqttStatusLabel = this._t("mqttStatus");
     const mqttOfflineNotice = this._t("mqttOfflineNotice");
     const startLearn = this._t(this._learnDialog?.step === "waiting" ? "learning" : "startLearn");
+    const batchLearn = this._t("batchLearn");
     const sendLast = this._t("sendLast");
+    const batchDelete = this._t("batchDelete");
+    const batchDeleteConfirm = this._t("batchDeleteConfirm");
+    const batchDeleteCancel = this._t("batchDeleteCancel");
+    const selectedCount = this._t("selectedCount", { count: this._selectedKeys.size });
     const unavailable = this._t("unavailable", { entity: this._config.store_entity });
     const learnedUnavailable = this._t("learnedUnavailable", { entity: this._config.learned_entity });
     const sendTopic = this._t("sendTopic");
@@ -700,9 +901,26 @@ class EspIrMqttCard extends HTMLElement {
         }
         .controls {
           display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: 10px;
           margin-bottom: 18px;
+        }
+        .selection-bar {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: space-between;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 14px;
+          padding: 12px 14px;
+          border-radius: 16px;
+          background: rgba(15, 118, 110, 0.08);
+          border: 1px solid rgba(15, 118, 110, 0.14);
+        }
+        .selection-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
         }
         .learn-modal-backdrop {
           position: absolute;
@@ -756,6 +974,50 @@ class EspIrMqttCard extends HTMLElement {
         }
         .learn-modal-actions button {
           flex: 1 1 150px;
+        }
+        .batch-panel {
+          margin-bottom: 18px;
+          padding: 16px;
+          background: rgba(255,255,255,0.9);
+          border: 1px solid var(--esp-ir-border);
+          border-radius: 18px;
+        }
+        .batch-panel-head {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: space-between;
+          gap: 12px;
+          align-items: flex-start;
+          margin-bottom: 14px;
+        }
+        .batch-panel-title {
+          font-size: 1rem;
+          font-weight: 700;
+        }
+        .batch-panel-text {
+          margin-top: 6px;
+          color: var(--esp-ir-muted);
+          line-height: 1.5;
+        }
+        .batch-panel-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+        .batch-items {
+          display: grid;
+          gap: 10px;
+        }
+        .batch-item {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 10px;
+          align-items: center;
+        }
+        .batch-item-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
         }
         .topic code {
           display: inline-block;
@@ -831,6 +1093,13 @@ class EspIrMqttCard extends HTMLElement {
           line-height: 1.3;
           word-break: break-word;
         }
+        .key-select {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: var(--esp-ir-muted);
+          font-size: 0.84rem;
+        }
         .topic {
           color: var(--esp-ir-muted);
           font-size: 0.82rem;
@@ -888,6 +1157,9 @@ class EspIrMqttCard extends HTMLElement {
           .keys {
             grid-template-columns: 1fr 1fr;
           }
+          .batch-item {
+            grid-template-columns: 1fr;
+          }
         }
       </style>
       <ha-card>
@@ -909,6 +1181,7 @@ class EspIrMqttCard extends HTMLElement {
 
           <div class="controls">
             <button class="primary" id="learn-start-btn" ${mqttConnected ? "" : "disabled"}>${startLearn}</button>
+            <button class="secondary" id="batch-learn-btn" ${mqttConnected ? "" : "disabled"}>${batchLearn}</button>
             <button class="secondary" id="send-last-btn" ${mqttConnected ? "" : "disabled"}>${sendLast}</button>
           </div>
 
@@ -930,6 +1203,22 @@ class EspIrMqttCard extends HTMLElement {
               : `<div class="offline-note">${mqttOfflineNotice}</div>`
           }
 
+          ${this._renderBatchLearnPanel(mqttConnected)}
+
+          ${
+            this._batchDeleteMode
+              ? `
+                <div class="selection-bar">
+                  <div>${selectedCount}</div>
+                  <div class="selection-actions">
+                    <button class="delete" id="batch-delete-confirm-btn" ${this._selectedKeys.size ? "" : "disabled"}>${batchDeleteConfirm}</button>
+                    <button class="secondary" id="batch-delete-cancel-btn">${batchDeleteCancel}</button>
+                  </div>
+                </div>
+              `
+              : `<div class="controls"><button class="secondary" id="batch-delete-btn" ${mqttConnected ? "" : "disabled"}>${batchDelete}</button></div>`
+          }
+
           <div class="keys">
             ${
               keys.length
@@ -938,7 +1227,11 @@ class EspIrMqttCard extends HTMLElement {
                       const confirming = this._pendingDelete === key;
                       return `
                         <div class="key">
-                          <div class="key-name">${key}</div>
+                          ${
+                            this._batchDeleteMode
+                              ? `<label class="key-select"><input type="checkbox" class="key-select-checkbox" data-key="${key}" ${this._selectedKeys.has(key) ? "checked" : ""} />${key}</label>`
+                              : `<div class="key-name">${key}</div>`
+                          }
                           <div class="topic">
                             ${sendTopic}<code>${sendNamedTopic}</code><br />
                             ${sendPayload}<code>${key}</code>
@@ -965,7 +1258,11 @@ class EspIrMqttCard extends HTMLElement {
     `;
 
     this.shadowRoot.getElementById("learn-start-btn")?.addEventListener("click", () => this._startLearning());
+    this.shadowRoot.getElementById("batch-learn-btn")?.addEventListener("click", () => this._startBatchLearning());
     this.shadowRoot.getElementById("send-last-btn")?.addEventListener("click", () => this._sendLast());
+    this.shadowRoot.getElementById("batch-delete-btn")?.addEventListener("click", () => this._toggleBatchDeleteMode());
+    this.shadowRoot.getElementById("batch-delete-cancel-btn")?.addEventListener("click", () => this._toggleBatchDeleteMode());
+    this.shadowRoot.getElementById("batch-delete-confirm-btn")?.addEventListener("click", () => this._deleteSelectedKeys());
     this.shadowRoot.querySelectorAll(".send-btn").forEach((button) => {
       button.addEventListener("click", (ev) => this._sendNamed(ev.currentTarget.dataset.key));
     });
@@ -981,6 +1278,9 @@ class EspIrMqttCard extends HTMLElement {
     this.shadowRoot.querySelectorAll(".delete-confirm-btn").forEach((button) => {
       button.addEventListener("click", (ev) => this._deleteNamed(ev.currentTarget.dataset.key));
     });
+    this.shadowRoot.querySelectorAll(".key-select-checkbox").forEach((checkbox) => {
+      checkbox.addEventListener("change", (ev) => this._toggleKeySelection(ev.currentTarget.dataset.key));
+    });
     this.shadowRoot.getElementById("learn-cancel-btn")?.addEventListener("click", () => this._cancelLearning());
     this.shadowRoot.getElementById("learn-test-btn")?.addEventListener("click", () => this._sendLast());
     this.shadowRoot.getElementById("learn-save-step-btn")?.addEventListener("click", () => this._moveLearningToNaming());
@@ -990,6 +1290,20 @@ class EspIrMqttCard extends HTMLElement {
       if (ev.key === "Enter") {
         this._saveLearnedCode();
       }
+    });
+    this.shadowRoot.getElementById("batch-save-btn")?.addEventListener("click", () => this._saveBatchLearned());
+    this.shadowRoot.getElementById("batch-stop-btn")?.addEventListener("click", () => this._stopBatchLearning());
+    this.shadowRoot.querySelectorAll(".batch-name-input").forEach((input) => {
+      input.addEventListener("input", (ev) => this._updateBatchItemName(ev.currentTarget.dataset.id, ev.currentTarget.value));
+    });
+    this.shadowRoot.querySelectorAll(".batch-test-btn").forEach((button) => {
+      button.addEventListener("click", (ev) => {
+        const item = this._batchLearn?.items?.find((entry) => entry.id === ev.currentTarget.dataset.id);
+        this._testPronto(item?.code || "");
+      });
+    });
+    this.shadowRoot.querySelectorAll(".batch-remove-btn").forEach((button) => {
+      button.addEventListener("click", (ev) => this._removeBatchItem(ev.currentTarget.dataset.id));
     });
   }
 }
