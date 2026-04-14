@@ -604,289 +604,353 @@ class EspIrMqttCard extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>
         :host {
-          --esp-ir-accent: #0f766e;
-          --esp-ir-accent-soft: #ccfbf1;
-          --esp-ir-border: rgba(15, 118, 110, 0.18);
-          --esp-ir-surface: linear-gradient(180deg, #f8fffd 0%, #eefbf8 100%);
-          --esp-ir-text: #163331;
-          --esp-ir-muted: #5e7874;
+          --esp-ir-accent: #03a9f4;
+          --esp-ir-accent-bg: rgba(3, 169, 244, 0.1);
+          --esp-ir-card-bg: var(--ha-card-background, var(--card-background-color, #fff));
+          --esp-ir-text-main: var(--primary-text-color, #212121);
+          --esp-ir-text-sub: var(--secondary-text-color, #727272);
+          --esp-ir-border-radius: 16px;
+          --esp-ir-shadow: 0 2px 10px rgba(0,0,0,0.05);
           display: block;
         }
+
         ha-card {
-          background: var(--esp-ir-surface);
-          border: 1px solid var(--esp-ir-border);
-          border-radius: 22px;
+          background: var(--esp-ir-card-bg);
+          border-radius: var(--esp-ir-border-radius);
+          box-shadow: var(--esp-ir-shadow);
+          border: 1px solid rgba(var(--rgb-primary-text-color), 0.05);
           overflow: hidden;
+          transition: all 0.3s ease;
         }
+
         .wrap {
-          padding: 18px;
-          color: var(--esp-ir-text);
+          padding: 24px;
+          color: var(--esp-ir-text-main);
           position: relative;
         }
+
         .hero {
           display: flex;
           justify-content: space-between;
+          align-items: center;
+          margin-bottom: 28px;
           gap: 16px;
-          align-items: flex-start;
-          margin-bottom: 16px;
         }
+
         .hero > div:first-child {
           min-width: 0;
           flex: 1 1 auto;
         }
+
         .title {
-          font-size: 1.2rem;
-          font-weight: 700;
-          letter-spacing: 0.01em;
+          font-size: 1.4rem;
+          font-weight: 500;
+          letter-spacing: -0.02em;
         }
+
         .subtitle {
-          color: var(--esp-ir-muted);
-          font-size: 0.92rem;
+          color: var(--esp-ir-text-sub);
+          font-size: 0.9rem;
           margin-top: 4px;
+          opacity: 0.8;
         }
+
         .badge {
-          background: rgba(255,255,255,0.8);
-          border: 1px solid var(--esp-ir-border);
-          border-radius: 18px;
-          padding: 8px 12px;
-          font-size: 0.82rem;
-          white-space: normal;
-          overflow-wrap: anywhere;
-          word-break: break-word;
-          line-height: 1.45;
-          flex: 0 1 340px;
-          max-width: 100%;
-          text-align: left;
+          background: var(--esp-ir-accent-bg);
+          border-radius: 12px;
+          padding: 10px 16px;
+          font-size: 0.85rem;
+          color: var(--esp-ir-accent);
+          border: 1px solid rgba(3, 169, 244, 0.2);
+          max-width: 40%;
         }
+
         .status-row {
           display: flex;
           align-items: center;
-          flex-wrap: wrap;
-          gap: 8px;
-          margin-top: 8px;
-          color: var(--esp-ir-text);
-          font-size: 0.84rem;
-          font-weight: 600;
-        }
-        .status-dot {
-          width: 10px;
-          height: 10px;
-          border-radius: 50%;
-          flex: 0 0 10px;
-          background: #9ca3af;
-          box-shadow: 0 0 0 3px rgba(156, 163, 175, 0.14);
-        }
-        .status-dot.connected {
-          background: #22c55e;
-          box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.14);
-        }
-        .status-dot.disconnected {
-          background: #9ca3af;
-          box-shadow: 0 0 0 3px rgba(156, 163, 175, 0.14);
-        }
-        .status-label {
-          color: var(--esp-ir-muted);
+          gap: 6px;
+          margin-top: 4px;
           font-weight: 500;
         }
-        .offline-note {
-          margin-bottom: 16px;
-          padding: 12px 14px;
-          border-radius: 16px;
-          background: rgba(156, 163, 175, 0.12);
-          border: 1px solid rgba(156, 163, 175, 0.24);
-          color: var(--esp-ir-muted);
-          font-size: 0.88rem;
-          line-height: 1.5;
+
+        .status-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
         }
+
+        .status-dot.connected {
+          background: #4caf50;
+          box-shadow: 0 0 8px #4caf50;
+        }
+
+        .status-dot.disconnected {
+          background: #f44336;
+        }
+
+        .status-label {
+          color: var(--esp-ir-text-sub);
+          font-weight: normal;
+        }
+
         .controls {
           display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 10px;
-          margin-bottom: 18px;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+          margin-bottom: 24px;
         }
-        .learn-modal-backdrop {
-          position: absolute;
-          inset: 0;
-          background: rgba(11, 26, 23, 0.42);
+
+        button {
+          border: none;
+          border-radius: 12px;
+          padding: 12px 20px;
+          font-size: 0.95rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
           display: flex;
           align-items: center;
           justify-content: center;
-          padding: 18px;
-          z-index: 10;
+          outline: none;
         }
-        .learn-modal {
-          width: min(100%, 520px);
-          background: rgba(255,255,255,0.98);
-          border: 1px solid var(--esp-ir-border);
-          border-radius: 20px;
-          padding: 18px;
-          box-shadow: 0 22px 60px rgba(15, 23, 42, 0.18);
+
+        .primary {
+          background: var(--esp-ir-accent);
+          color: #fff;
+          box-shadow: 0 4px 12px rgba(3, 169, 244, 0.3);
         }
-        .learn-modal-title {
-          font-size: 1.04rem;
-          font-weight: 700;
+
+        .primary:hover {
+          filter: brightness(1.1);
+          transform: translateY(-2px);
+          box-shadow: 0 6px 16px rgba(3, 169, 244, 0.4);
         }
-        .learn-modal-text {
-          margin-top: 8px;
-          color: var(--esp-ir-muted);
-          line-height: 1.6;
+
+        .secondary {
+          background: rgba(var(--rgb-primary-text-color), 0.04);
+          color: var(--esp-ir-text-main);
         }
-        .learn-modal-preview {
-          margin-top: 12px;
-          padding: 12px;
-          background: rgba(15, 118, 110, 0.06);
+
+        .secondary:hover {
+          background: rgba(var(--rgb-primary-text-color), 0.08);
+        }
+
+        button:disabled,
+        input:disabled {
+          opacity: 0.4;
+          transform: none !important;
+          box-shadow: none !important;
+          cursor: not-allowed;
+        }
+
+        .shared-topic {
+          background: rgba(var(--rgb-primary-text-color), 0.03);
+          border: 1px solid rgba(var(--rgb-primary-text-color), 0.06);
           border-radius: 14px;
-          color: var(--esp-ir-text);
+          padding: 14px 16px;
+          margin-bottom: 18px;
+          font-size: 0.8rem;
+          color: var(--esp-ir-text-sub);
+          line-height: 1.7;
+        }
+
+        .shared-topic strong {
+          color: var(--esp-ir-text-main);
+          font-weight: 600;
+        }
+
+        .shared-topic code {
+          display: inline-block;
+          padding: 2px 8px;
+          border-radius: 999px;
+          background: rgba(3, 169, 244, 0.1);
+          color: var(--esp-ir-accent);
+          font-size: 0.8rem;
+          word-break: break-all;
+        }
+
+        .keys {
+          display: grid;
+          grid-template-columns: repeat(${columns}, 1fr);
+          gap: 16px;
+        }
+
+        .key {
+          background: rgba(var(--rgb-primary-text-color), 0.02);
+          border: 1px solid rgba(var(--rgb-primary-text-color), 0.05);
+          border-radius: 16px;
+          padding: 16px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          min-height: 110px;
+          transition: border-color 0.2s;
+        }
+
+        .key:hover {
+          border-color: var(--esp-ir-accent);
+        }
+
+        .key-name {
+          font-size: 1rem;
+          font-weight: 600;
+          margin-bottom: 8px;
+          word-break: break-word;
+        }
+
+        .key-payload {
+          font-size: 0.8rem;
+          color: var(--esp-ir-text-sub);
+          margin-bottom: 14px;
+          font-family: monospace;
+          word-break: break-all;
+          opacity: 0.72;
+        }
+
+        .key-actions {
+          display: flex;
+          gap: 8px;
+        }
+
+        .key-actions button {
+          padding: 8px;
+          font-size: 0.85rem;
+          flex: 1;
+          border-radius: 8px;
+        }
+
+        .delete {
+          background: transparent;
+          color: #ef5350;
+          opacity: 0.6;
+        }
+
+        .delete:hover {
+          opacity: 1;
+          background: rgba(239, 83, 80, 0.1);
+        }
+
+        .confirm {
+          background: #ef5350;
+          color: white;
+        }
+
+        .learn-modal-backdrop {
+          position: absolute;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.2);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+          z-index: 100;
+          animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        .learn-modal {
+          background: var(--esp-ir-card-bg);
+          width: 100%;
+          max-width: 400px;
+          border-radius: 24px;
+          padding: 24px;
+          box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+          border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .learn-modal-title {
+          font-size: 1.2rem;
+          font-weight: 600;
+        }
+
+        .learn-modal-text {
+          color: var(--esp-ir-text-sub);
+          margin-top: 8px;
           line-height: 1.55;
         }
+
+        .learn-modal-preview {
+          background: rgba(var(--rgb-primary-text-color), 0.04);
+          padding: 12px;
+          border-radius: 12px;
+          margin: 16px 0;
+          font-size: 0.85rem;
+        }
+
         .learn-modal-preview code {
           display: block;
           margin-top: 6px;
           white-space: normal;
           word-break: break-all;
         }
-        .learn-modal input {
-          margin-top: 12px;
+
+        input {
+          background: rgba(var(--rgb-primary-text-color), 0.04);
+          border: 1px solid rgba(var(--rgb-primary-text-color), 0.1);
+          border-radius: 12px;
+          padding: 12px 16px;
+          width: 100%;
+          box-sizing: border-box;
+          color: var(--esp-ir-text-main);
+          font-size: 1rem;
+          margin-bottom: 16px;
+          transition: border-color 0.2s;
         }
+
+        input:focus {
+          border-color: var(--esp-ir-accent);
+          outline: none;
+        }
+
         .learn-modal-actions {
           display: flex;
           flex-wrap: wrap;
           gap: 10px;
-          margin-top: 14px;
         }
+
         .learn-modal-actions button {
           flex: 1 1 150px;
         }
-        .topic code {
-          display: inline-block;
-          padding: 2px 8px;
-          border-radius: 999px;
-          background: rgba(15, 118, 110, 0.08);
-          color: #0f5e57;
-          font-size: 0.84rem;
-          word-break: break-all;
-        }
-        input {
-          width: 100%;
-          box-sizing: border-box;
-          border: 1px solid rgba(22, 51, 49, 0.12);
-          border-radius: 14px;
-          padding: 12px 14px;
-          outline: none;
-          font-size: 0.95rem;
-          background: rgba(255,255,255,0.92);
-          color: var(--esp-ir-text);
-        }
-        input:focus {
-          border-color: var(--esp-ir-accent);
-          box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
-        }
-        button {
-          border: 0;
-          border-radius: 14px;
-          padding: 12px 14px;
-          font-size: 0.94rem;
-          font-weight: 700;
-          cursor: pointer;
-          transition: transform 120ms ease, opacity 120ms ease, background 120ms ease;
-        }
-        button:hover {
-          transform: translateY(-1px);
-        }
-        button:disabled,
-        input:disabled {
-          cursor: not-allowed;
-          opacity: 0.5;
-          transform: none;
-        }
-        button:disabled:hover {
-          transform: none;
-        }
-        .primary {
-          background: var(--esp-ir-accent);
-          color: white;
-        }
-        .secondary {
-          background: white;
-          color: var(--esp-ir-text);
-          border: 1px solid var(--esp-ir-border);
-        }
-        .keys {
-          display: grid;
-          grid-template-columns: repeat(${columns}, minmax(0, 1fr));
-          gap: 12px;
-        }
-        .key {
-          background: rgba(255,255,255,0.88);
-          border: 1px solid rgba(22, 51, 49, 0.08);
-          border-radius: 18px;
-          padding: 12px;
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-          min-height: 104px;
-        }
-        .key-name {
-          font-weight: 700;
-          line-height: 1.3;
-          word-break: break-word;
-        }
-        .topic {
-          color: var(--esp-ir-muted);
-          font-size: 0.82rem;
-          line-height: 1.55;
-          word-break: break-word;
-        }
-        .key-actions {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-        .key-actions button {
-          flex: 1 1 calc(50% - 4px);
-          padding: 10px 12px;
-          font-size: 0.88rem;
-        }
-        .delete {
-          background: #fff1f2;
-          color: #be123c;
-          border: 1px solid rgba(190, 18, 60, 0.14);
-        }
-        .confirm {
-          background: #be123c;
-          color: white;
-        }
-        .empty {
-          padding: 24px 14px;
-          text-align: center;
-          color: var(--esp-ir-muted);
-          background: rgba(255,255,255,0.6);
-          border-radius: 18px;
-          border: 1px dashed rgba(22, 51, 49, 0.15);
-        }
-        .error {
-          padding: 18px 16px;
+
+        .error,
+        .offline-note {
+          background: #fff5f5;
+          color: #c53030;
+          padding: 12px 16px;
+          border-radius: 12px;
+          font-size: 0.9rem;
           margin-bottom: 16px;
-          border-radius: 18px;
-          background: #fff7ed;
-          color: #9a3412;
-          border: 1px solid rgba(154, 52, 18, 0.15);
-          line-height: 1.5;
+          border-left: 4px solid #fc8181;
         }
-        @media (max-width: 720px) {
-          .hero {
-            flex-direction: column;
-          }
-          .badge {
-            width: 100%;
-            box-sizing: border-box;
-            flex-basis: auto;
-          }
-          .controls {
-            grid-template-columns: 1fr;
-          }
+
+        .empty {
+          grid-column: 1 / -1;
+          padding: 40px 20px;
+          text-align: center;
+          color: var(--esp-ir-text-sub);
+          border: 2px dashed rgba(var(--rgb-primary-text-color), 0.1);
+          border-radius: 16px;
+        }
+
+        @media (max-width: 500px) {
           .keys {
             grid-template-columns: 1fr 1fr;
+          }
+
+          .hero {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+
+          .badge {
+            max-width: 100%;
+            width: 100%;
           }
         }
       </style>
@@ -930,6 +994,11 @@ class EspIrMqttCard extends HTMLElement {
               : `<div class="offline-note">${mqttOfflineNotice}</div>`
           }
 
+          <div class="shared-topic">
+            <div><strong>${sendTopic}</strong> <code>${sendNamedTopic}</code></div>
+            <div><strong>${sendPayload}</strong> 按键名称</div>
+          </div>
+
           <div class="keys">
             ${
               keys.length
@@ -939,10 +1008,7 @@ class EspIrMqttCard extends HTMLElement {
                       return `
                         <div class="key">
                           <div class="key-name">${key}</div>
-                          <div class="topic">
-                            ${sendTopic}<code>${sendNamedTopic}</code><br />
-                            ${sendPayload}<code>${key}</code>
-                          </div>
+                          <div class="key-payload">${key}</div>
                           <div class="key-actions">
                             <button class="primary send-btn" data-key="${key}" ${mqttConnected ? "" : "disabled"}>${send}</button>
                             ${
