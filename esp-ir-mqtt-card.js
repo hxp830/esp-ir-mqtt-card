@@ -17,7 +17,15 @@ class EspIrMqttCard extends HTMLElement {
       sendingLast: "Sending the most recently learned code",
       badge: "State: {state}",
       placeholder: "Enter a key name, e.g. AC Power or ac_power_on",
-      saveCurrent: "Save Current Learned Code",
+      startLearn: "Start Learning",
+      learning: "Listening for IR",
+      learnWaiting: "Waiting for a newly learned IR code. Point the remote at the receiver and press a button.",
+      learnCaptured: "New IR code captured.",
+      learnQuestion: "Save this IR command?",
+      learnNamePrompt: "Enter a name for this IR command",
+      confirmSaveLearned: "Save Command",
+      testLearned: "Test Command",
+      cancel: "Cancel",
       sendLast: "Send Last Learned Code",
       unavailable: "Store entity <strong>{entity}</strong> is unavailable. Please create the MQTT sensor first, then reload Home Assistant.",
       sendTopic: "Send topic:",
@@ -30,8 +38,12 @@ class EspIrMqttCard extends HTMLElement {
       connected: "Connected",
       disconnected: "Disconnected",
       mqttOfflineNotice: "MQTT is disconnected. All controls are disabled until the connection is restored.",
+      learnedEntityRequired: "learned_entity is required",
+      learnedUnavailable: "Learned entity <strong>{entity}</strong> is unavailable. Please create it first.",
+      learnedPreview: "Learned code preview:",
       editorTitle: "Title",
       editorStoreEntity: "Store entity",
+      editorLearnedEntity: "Learned entity",
       editorMqttStatusEntity: "MQTT status entity",
       editorTopicPrefix: "Topic prefix",
       editorColumns: "Columns",
@@ -50,7 +62,15 @@ class EspIrMqttCard extends HTMLElement {
       sendingLast: "正在发送最近学习结果",
       badge: "当前状态：{state}",
       placeholder: "输入按键名称，例如 空调打开 或 ac_power_on",
-      saveCurrent: "一键保存当前学习结果",
+      startLearn: "开始学习",
+      learning: "正在等待红外",
+      learnWaiting: "正在等待新的红外学习结果。请将遥控器对准接收头并按下按键。",
+      learnCaptured: "检测到新的红外命令。",
+      learnQuestion: "是否保存这个红外命令？",
+      learnNamePrompt: "请输入这个红外命令的名称",
+      confirmSaveLearned: "确认学习",
+      testLearned: "测试这个命令",
+      cancel: "取消",
       sendLast: "发送最近学习结果",
       unavailable: "存储实体 <strong>{entity}</strong> 当前不可用。请先创建 MQTT 传感器，然后重载 Home Assistant。",
       sendTopic: "发送主题：",
@@ -63,8 +83,12 @@ class EspIrMqttCard extends HTMLElement {
       connected: "连接",
       disconnected: "未连接",
       mqttOfflineNotice: "MQTT 未连接，下面的输入框和按钮已禁用，连接恢复后才可使用。",
+      learnedEntityRequired: "learned_entity 是必填项",
+      learnedUnavailable: "学习实体 <strong>{entity}</strong> 当前不可用。请先创建它。",
+      learnedPreview: "学习结果预览：",
       editorTitle: "标题",
       editorStoreEntity: "存储实体",
+      editorLearnedEntity: "学习结果实体",
       editorMqttStatusEntity: "MQTT 状态实体",
       editorTopicPrefix: "主题前缀",
       editorColumns: "列数",
@@ -83,7 +107,15 @@ class EspIrMqttCard extends HTMLElement {
       sendingLast: "Отправка последнего изученного кода",
       badge: "Состояние: {state}",
       placeholder: "Введите имя кнопки, например AC Power или ac_power_on",
-      saveCurrent: "Сохранить текущий код",
+      startLearn: "Начать обучение",
+      learning: "Ожидание ИК",
+      learnWaiting: "Ожидание нового изученного ИК-кода. Направьте пульт на приемник и нажмите кнопку.",
+      learnCaptured: "Новый ИК-код получен.",
+      learnQuestion: "Сохранить эту ИК-команду?",
+      learnNamePrompt: "Введите имя для этой ИК-команды",
+      confirmSaveLearned: "Сохранить команду",
+      testLearned: "Проверить команду",
+      cancel: "Отмена",
       sendLast: "Отправить последний код",
       unavailable: "Сущность хранилища <strong>{entity}</strong> недоступна. Сначала создайте MQTT-сенсор, затем перезагрузите Home Assistant.",
       sendTopic: "Тема отправки:",
@@ -96,8 +128,12 @@ class EspIrMqttCard extends HTMLElement {
       connected: "Подключено",
       disconnected: "Не подключено",
       mqttOfflineNotice: "MQTT отключен. Все элементы управления заблокированы до восстановления подключения.",
+      learnedEntityRequired: "learned_entity обязателен",
+      learnedUnavailable: "Сущность изученного кода <strong>{entity}</strong> недоступна. Сначала создайте ее.",
+      learnedPreview: "Предпросмотр изученного кода:",
       editorTitle: "Заголовок",
       editorStoreEntity: "Сущность хранилища",
+      editorLearnedEntity: "Сущность изученного кода",
       editorMqttStatusEntity: "Сущность статуса MQTT",
       editorTopicPrefix: "Префикс topic",
       editorColumns: "Колонки",
@@ -113,6 +149,7 @@ class EspIrMqttCard extends HTMLElement {
   static getStubConfig() {
     return {
       store_entity: "sensor.esp_ir_store",
+      learned_entity: "sensor.esp_ir_last_learned",
       mqtt_status_entity: EspIrMqttCard.DEFAULT_MQTT_STATUS_ENTITY,
       topic_prefix: "newchuangan1/ir",
       title: "红外按键面板",
@@ -132,12 +169,14 @@ class EspIrMqttCard extends HTMLElement {
       title: EspIrMqttCard.TRANSLATIONS[language].title,
       columns: 3,
       default_example_name: "test_ir",
+      learned_entity: "sensor.esp_ir_last_learned",
       mqtt_status_entity: mqttStatusEntity,
       language,
       ...config,
       mqtt_status_entity: mqttStatusEntity,
     };
     this._pendingDelete = null;
+    this._learnDialog = null;
     if (!this.shadowRoot) {
       this.attachShadow({ mode: "open" });
     }
@@ -145,7 +184,9 @@ class EspIrMqttCard extends HTMLElement {
   }
 
   set hass(hass) {
+    const previousLearned = this._getLearnedStateValue();
     this._hass = hass;
+    this._handleLearnedStateChange(previousLearned, this._getLearnedStateValue());
     this._render();
   }
 
@@ -172,6 +213,16 @@ class EspIrMqttCard extends HTMLElement {
 
   _getStoreEntity() {
     return this._hass?.states?.[this._config.store_entity];
+  }
+
+  _getLearnedEntity() {
+    return this._config?.learned_entity
+      ? this._hass?.states?.[this._config.learned_entity]
+      : null;
+  }
+
+  _getLearnedStateValue() {
+    return (this._getLearnedEntity()?.state || "").toString();
   }
 
   _normalizeMqttStatusEntity(entityId) {
@@ -292,6 +343,148 @@ class EspIrMqttCard extends HTMLElement {
     return [...keys].sort((a, b) => a.localeCompare(b));
   }
 
+  _handleLearnedStateChange(previousValue, nextValue) {
+    if (!this._learnDialog || this._learnDialog.step !== "waiting") {
+      return;
+    }
+
+    const next = (nextValue || "").trim();
+    const baseline = (this._learnDialog.baseline || "").trim();
+    if (!next || next === baseline || next === previousValue) {
+      return;
+    }
+
+    this._learnDialog = {
+      ...this._learnDialog,
+      step: "review",
+      captured: next,
+    };
+  }
+
+  _startLearning() {
+    if (this._getMqttStatusInfo().connectionState !== "connected") {
+      return;
+    }
+    if (!this._getLearnedEntity()) {
+      this._toast(this._t("learnedUnavailable", { entity: this._config.learned_entity }).replace(/<[^>]+>/g, ""));
+      return;
+    }
+    this._learnDialog = {
+      step: "waiting",
+      baseline: this._getLearnedStateValue(),
+      captured: "",
+      name: this._config.default_example_name || "",
+    };
+    this._render();
+  }
+
+  _cancelLearning() {
+    this._learnDialog = null;
+    this._render();
+  }
+
+  _moveLearningToNaming() {
+    if (!this._learnDialog) {
+      return;
+    }
+    this._learnDialog = {
+      ...this._learnDialog,
+      step: "naming",
+      name: this._learnDialog.name || this._config.default_example_name || "",
+    };
+    this._render();
+    queueMicrotask(() => {
+      this.shadowRoot?.getElementById("learn-name")?.focus();
+    });
+  }
+
+  _updateLearnName(value) {
+    if (!this._learnDialog) {
+      return;
+    }
+    this._learnDialog = {
+      ...this._learnDialog,
+      name: value,
+    };
+  }
+
+  _saveLearnedCode() {
+    if (this._getMqttStatusInfo().connectionState !== "connected" || !this._learnDialog) {
+      return;
+    }
+    const value = (this._learnDialog.name || "").trim();
+    if (!value) {
+      this._toast(this._t("enterKeyName"));
+      return;
+    }
+    this._publish(`${this._config.topic_prefix}/save_as`, value);
+    this._toast(this._t("savedAs", { value }));
+    this._learnDialog = null;
+    this._render();
+  }
+
+  _renderLearnDialog(mqttConnected) {
+    if (!this._learnDialog) {
+      return "";
+    }
+
+    const cancel = this._t("cancel");
+    if (this._learnDialog.step === "waiting") {
+      return `
+        <div class="learn-modal-backdrop">
+          <div class="learn-modal">
+            <div class="learn-modal-title">${this._t("learning")}</div>
+            <div class="learn-modal-text">${this._t("learnWaiting")}</div>
+            <div class="learn-modal-actions">
+              <button class="secondary" id="learn-cancel-btn">${cancel}</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    const capturedPreview = (this._learnDialog.captured || "").slice(0, 160);
+    const previewLabel = this._t("learnedPreview");
+    if (this._learnDialog.step === "review") {
+      return `
+        <div class="learn-modal-backdrop">
+          <div class="learn-modal">
+            <div class="learn-modal-title">${this._t("learnCaptured")}</div>
+            <div class="learn-modal-text">${this._t("learnQuestion")}</div>
+            <div class="learn-modal-preview">
+              <strong>${previewLabel}</strong><br />
+              <code>${capturedPreview}</code>
+            </div>
+            <div class="learn-modal-actions">
+              <button class="secondary" id="learn-test-btn" ${mqttConnected ? "" : "disabled"}>${this._t("testLearned")}</button>
+              <button class="primary" id="learn-save-step-btn" ${mqttConnected ? "" : "disabled"}>${this._t("confirmSaveLearned")}</button>
+              <button class="secondary" id="learn-cancel-btn">${cancel}</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="learn-modal-backdrop">
+        <div class="learn-modal">
+          <div class="learn-modal-title">${this._t("confirmSaveLearned")}</div>
+          <div class="learn-modal-text">${this._t("learnNamePrompt")}</div>
+          <div class="learn-modal-preview">
+            <strong>${previewLabel}</strong><br />
+            <code>${capturedPreview}</code>
+          </div>
+          <input id="learn-name" value="${this._learnDialog.name || ""}" placeholder="${this._t("placeholder")}" ${mqttConnected ? "" : "disabled"} />
+          <div class="learn-modal-actions">
+            <button class="primary" id="learn-confirm-btn" ${mqttConnected ? "" : "disabled"}>${this._t("confirmSaveLearned")}</button>
+            <button class="secondary" id="learn-test-btn" ${mqttConnected ? "" : "disabled"}>${this._t("testLearned")}</button>
+            <button class="secondary" id="learn-cancel-btn">${cancel}</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   _saveCurrent() {
     if (this._getMqttStatusInfo().connectionState !== "connected") {
       return;
@@ -349,6 +542,7 @@ class EspIrMqttCard extends HTMLElement {
     }
 
     const stateObj = this._getStoreEntity();
+    const learnedStateObj = this._getLearnedEntity();
     const keys = this._extractKeys(stateObj);
     const columns = Math.max(1, Number(this._config.columns) || 3);
     const entityState = stateObj ? stateObj.state : "unavailable";
@@ -362,10 +556,10 @@ class EspIrMqttCard extends HTMLElement {
     const mqttStatusText = this._t(mqttStatus.connectionState);
     const mqttStatusLabel = this._t("mqttStatus");
     const mqttOfflineNotice = this._t("mqttOfflineNotice");
-    const placeholder = this._t("placeholder");
-    const saveCurrent = this._t("saveCurrent");
+    const startLearn = this._t(this._learnDialog?.step === "waiting" ? "learning" : "startLearn");
     const sendLast = this._t("sendLast");
     const unavailable = this._t("unavailable", { entity: this._config.store_entity });
+    const learnedUnavailable = this._t("learnedUnavailable", { entity: this._config.learned_entity });
     const sendTopic = this._t("sendTopic");
     const sendPayload = this._t("sendPayload");
     const send = this._t("send");
@@ -393,6 +587,7 @@ class EspIrMqttCard extends HTMLElement {
         .wrap {
           padding: 18px;
           color: var(--esp-ir-text);
+          position: relative;
         }
         .hero {
           display: flex;
@@ -471,9 +666,62 @@ class EspIrMqttCard extends HTMLElement {
         }
         .controls {
           display: grid;
-          grid-template-columns: 1.6fr auto auto;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 10px;
           margin-bottom: 18px;
+        }
+        .learn-modal-backdrop {
+          position: absolute;
+          inset: 0;
+          background: rgba(11, 26, 23, 0.42);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 18px;
+          z-index: 10;
+        }
+        .learn-modal {
+          width: min(100%, 520px);
+          background: rgba(255,255,255,0.98);
+          border: 1px solid var(--esp-ir-border);
+          border-radius: 20px;
+          padding: 18px;
+          box-shadow: 0 22px 60px rgba(15, 23, 42, 0.18);
+        }
+        .learn-modal-title {
+          font-size: 1.04rem;
+          font-weight: 700;
+        }
+        .learn-modal-text {
+          margin-top: 8px;
+          color: var(--esp-ir-muted);
+          line-height: 1.6;
+        }
+        .learn-modal-preview {
+          margin-top: 12px;
+          padding: 12px;
+          background: rgba(15, 118, 110, 0.06);
+          border-radius: 14px;
+          color: var(--esp-ir-text);
+          line-height: 1.55;
+        }
+        .learn-modal-preview code {
+          display: block;
+          margin-top: 6px;
+          white-space: normal;
+          word-break: break-all;
+        }
+        .learn-modal input {
+          margin-top: 12px;
+        }
+        .learn-modal-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-top: 14px;
+        }
+        .learn-modal-actions button {
+          flex: 1 1 150px;
         }
         .topic code {
           display: inline-block;
@@ -626,8 +874,7 @@ class EspIrMqttCard extends HTMLElement {
           </div>
 
           <div class="controls">
-            <input id="save-name" value="${exampleName}" placeholder="${placeholder}" ${mqttConnected ? "" : "disabled"} />
-            <button class="primary" id="save-btn" ${mqttConnected ? "" : "disabled"}>${saveCurrent}</button>
+            <button class="primary" id="learn-start-btn" ${mqttConnected ? "" : "disabled"}>${startLearn}</button>
             <button class="secondary" id="send-last-btn" ${mqttConnected ? "" : "disabled"}>${sendLast}</button>
           </div>
 
@@ -635,6 +882,12 @@ class EspIrMqttCard extends HTMLElement {
             !stateObj
               ? `<div class="error">${unavailable}</div>`
               : ""
+          }
+
+          ${
+            learnedStateObj
+              ? ""
+              : `<div class="error">${learnedUnavailable}</div>`
           }
 
           ${
@@ -671,11 +924,13 @@ class EspIrMqttCard extends HTMLElement {
                 : `<div class="empty">${empty}</div>`
             }
           </div>
+
+          ${this._renderLearnDialog(mqttConnected)}
         </div>
       </ha-card>
     `;
 
-    this.shadowRoot.getElementById("save-btn")?.addEventListener("click", () => this._saveCurrent());
+    this.shadowRoot.getElementById("learn-start-btn")?.addEventListener("click", () => this._startLearning());
     this.shadowRoot.getElementById("send-last-btn")?.addEventListener("click", () => this._sendLast());
     this.shadowRoot.querySelectorAll(".send-btn").forEach((button) => {
       button.addEventListener("click", (ev) => this._sendNamed(ev.currentTarget.dataset.key));
@@ -691,6 +946,16 @@ class EspIrMqttCard extends HTMLElement {
     });
     this.shadowRoot.querySelectorAll(".delete-confirm-btn").forEach((button) => {
       button.addEventListener("click", (ev) => this._deleteNamed(ev.currentTarget.dataset.key));
+    });
+    this.shadowRoot.getElementById("learn-cancel-btn")?.addEventListener("click", () => this._cancelLearning());
+    this.shadowRoot.getElementById("learn-test-btn")?.addEventListener("click", () => this._sendLast());
+    this.shadowRoot.getElementById("learn-save-step-btn")?.addEventListener("click", () => this._moveLearningToNaming());
+    this.shadowRoot.getElementById("learn-confirm-btn")?.addEventListener("click", () => this._saveLearnedCode());
+    this.shadowRoot.getElementById("learn-name")?.addEventListener("input", (ev) => this._updateLearnName(ev.currentTarget.value));
+    this.shadowRoot.getElementById("learn-name")?.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") {
+        this._saveLearnedCode();
+      }
     });
   }
 }
@@ -760,6 +1025,7 @@ class EspIrMqttCardEditor extends HTMLElement {
     const config = {
       columns: 3,
       default_example_name: "test_ir",
+      learned_entity: "sensor.esp_ir_last_learned",
       mqtt_status_entity: EspIrMqttCard.DEFAULT_MQTT_STATUS_ENTITY,
       ...this._config,
     };
@@ -802,6 +1068,10 @@ class EspIrMqttCardEditor extends HTMLElement {
         <div class="field">
           <label>${this._t("editorStoreEntity")}</label>
           <input value="${config.store_entity || ""}" configValue="store_entity" />
+        </div>
+        <div class="field">
+          <label>${this._t("editorLearnedEntity")}</label>
+          <input value="${config.learned_entity || ""}" configValue="learned_entity" />
         </div>
         <div class="field">
           <label>${this._t("editorMqttStatusEntity")}</label>
