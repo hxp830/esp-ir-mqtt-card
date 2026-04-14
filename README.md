@@ -90,6 +90,7 @@ mqtt:
 type: custom:esp-ir-mqtt-card
 title: ESP IR Remote Panel
 store_entity: sensor.esp_ir_store
+mqtt_status_entity: binary_sensor.esp_ir_device_online
 topic_prefix: newchuangan1/ir
 columns: 3
 default_example_name: test_ir
@@ -101,6 +102,15 @@ Supported `language` values:
 - `en`
 - `zh`
 - `ru`
+
+Optional config:
+
+- `mqtt_status_entity`: entity used to show MQTT connection status, for example `binary_sensor.esp_ir_device_online`
+
+When configured, the card header shows a status dot:
+
+- green: connected
+- gray: disconnected
 
 If `language` is omitted, the card tries to follow the Home Assistant language automatically.
 

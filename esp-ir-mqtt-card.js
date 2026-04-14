@@ -21,6 +21,9 @@ class EspIrMqttCard extends HTMLElement {
       delete: "Delete",
       confirmDelete: "Confirm Delete",
       empty: "No saved keys yet. Learn an IR code first, then click “Save Current Learned Code”.",
+      mqttStatus: "MQTT:",
+      connected: "Connected",
+      disconnected: "Disconnected",
     },
     zh: {
       title: "红外按键面板",
@@ -43,6 +46,9 @@ class EspIrMqttCard extends HTMLElement {
       delete: "删除",
       confirmDelete: "确认删除",
       empty: "还没有保存任何按键。请先学习红外，然后点击“一键保存当前学习结果”。",
+      mqttStatus: "MQTT：",
+      connected: "连接",
+      disconnected: "未连接",
     },
     ru: {
       title: "Панель ИК-кнопок",
@@ -65,6 +71,9 @@ class EspIrMqttCard extends HTMLElement {
       delete: "Удалить",
       confirmDelete: "Подтвердить удаление",
       empty: "Сохраненных кнопок пока нет. Сначала изучите ИК-код, затем нажмите «Сохранить текущий код».",
+      mqttStatus: "MQTT:",
+      connected: "Подключено",
+      disconnected: "Не подключено",
     },
   };
 
@@ -75,6 +84,7 @@ class EspIrMqttCard extends HTMLElement {
   static getStubConfig() {
     return {
       store_entity: "sensor.esp_ir_store",
+      mqtt_status_entity: "binary_sensor.esp_ir_device_online",
       topic_prefix: "newchuangan1/ir",
       title: "红外按键面板",
     };
@@ -92,6 +102,7 @@ class EspIrMqttCard extends HTMLElement {
       title: EspIrMqttCard.TRANSLATIONS[language].title,
       columns: 3,
       default_example_name: "test_ir",
+      mqtt_status_entity: "binary_sensor.esp_ir_device_online",
       language,
       ...config,
     };
@@ -130,6 +141,26 @@ class EspIrMqttCard extends HTMLElement {
 
   _getStoreEntity() {
     return this._hass?.states?.[this._config.store_entity];
+  }
+
+  _getMqttStatusEntity() {
+    return this._config?.mqtt_status_entity
+      ? this._hass?.states?.[this._config.mqtt_status_entity]
+      : null;
+  }
+
+  _getMqttConnectionState() {
+    const stateObj = this._getMqttStatusEntity();
+    const normalized = (stateObj?.state || "").toString().toLowerCase();
+    const connectedStates = new Set(["on", "online", "connected", "true"]);
+    const disconnectedStates = new Set(["off", "offline", "disconnected", "false", "unavailable", "unknown"]);
+    if (connectedStates.has(normalized)) {
+      return "connected";
+    }
+    if (disconnectedStates.has(normalized) || !stateObj) {
+      return "disconnected";
+    }
+    return "disconnected";
   }
 
   _resolveLanguage(lang) {
@@ -241,6 +272,9 @@ class EspIrMqttCard extends HTMLElement {
     const title = this._config.title || this._t("title");
     const subtitle = this._t("subtitle");
     const badge = this._t("badge", { entity: this._config.store_entity, state: entityState });
+    const mqttConnectionState = this._getMqttConnectionState();
+    const mqttStatusText = this._t(mqttConnectionState);
+    const mqttStatusLabel = this._t("mqttStatus");
     const placeholder = this._t("placeholder");
     const saveCurrent = this._t("saveCurrent");
     const sendLast = this._t("sendLast");
@@ -307,6 +341,35 @@ class EspIrMqttCard extends HTMLElement {
           flex: 0 1 340px;
           max-width: 100%;
           text-align: left;
+        }
+        .status-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-top: 8px;
+          color: var(--esp-ir-text);
+          font-size: 0.84rem;
+          font-weight: 600;
+        }
+        .status-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          flex: 0 0 10px;
+          background: #9ca3af;
+          box-shadow: 0 0 0 3px rgba(156, 163, 175, 0.14);
+        }
+        .status-dot.connected {
+          background: #22c55e;
+          box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.14);
+        }
+        .status-dot.disconnected {
+          background: #9ca3af;
+          box-shadow: 0 0 0 3px rgba(156, 163, 175, 0.14);
+        }
+        .status-label {
+          color: var(--esp-ir-muted);
+          font-weight: 500;
         }
         .controls {
           display: grid;
@@ -445,7 +508,14 @@ class EspIrMqttCard extends HTMLElement {
               <div class="title">${title}</div>
               <div class="subtitle">${subtitle}</div>
             </div>
-            <div class="badge">${badge}</div>
+            <div class="badge">
+              <div>${badge}</div>
+              <div class="status-row">
+                <span class="status-dot ${mqttConnectionState}"></span>
+                <span class="status-label">${mqttStatusLabel}</span>
+                <span>${mqttStatusText}</span>
+              </div>
+            </div>
           </div>
 
           <div class="controls">
