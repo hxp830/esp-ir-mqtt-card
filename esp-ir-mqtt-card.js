@@ -25,7 +25,6 @@ class EspIrMqttCard extends HTMLElement {
       connected: "Connected",
       disconnected: "Disconnected",
       mqttOfflineNotice: "MQTT is disconnected. All controls are disabled until the connection is restored.",
-      mqttDebug: "Debug: {entity} = {value}",
       editorTitle: "Title",
       editorStoreEntity: "Store entity",
       editorMqttStatusEntity: "MQTT status entity",
@@ -59,7 +58,6 @@ class EspIrMqttCard extends HTMLElement {
       connected: "连接",
       disconnected: "未连接",
       mqttOfflineNotice: "MQTT 未连接，下面的输入框和按钮已禁用，连接恢复后才可使用。",
-      mqttDebug: "调试：{entity} = {value}",
       editorTitle: "标题",
       editorStoreEntity: "存储实体",
       editorMqttStatusEntity: "MQTT 状态实体",
@@ -93,7 +91,6 @@ class EspIrMqttCard extends HTMLElement {
       connected: "Подключено",
       disconnected: "Не подключено",
       mqttOfflineNotice: "MQTT отключен. Все элементы управления заблокированы до восстановления подключения.",
-      mqttDebug: "Отладка: {entity} = {value}",
       editorTitle: "Заголовок",
       editorStoreEntity: "Сущность хранилища",
       editorMqttStatusEntity: "Сущность статуса MQTT",
@@ -350,10 +347,6 @@ class EspIrMqttCard extends HTMLElement {
     const mqttStatusText = this._t(mqttStatus.connectionState);
     const mqttStatusLabel = this._t("mqttStatus");
     const mqttOfflineNotice = this._t("mqttOfflineNotice");
-    const mqttDebug = this._t("mqttDebug", {
-      entity: mqttStatus.entityId || "none",
-      value: mqttStatus.rawState || "unknown",
-    });
     const placeholder = this._t("placeholder");
     const saveCurrent = this._t("saveCurrent");
     const sendLast = this._t("sendLast");
@@ -450,13 +443,6 @@ class EspIrMqttCard extends HTMLElement {
         .status-label {
           color: var(--esp-ir-muted);
           font-weight: 500;
-        }
-        .status-debug {
-          margin-top: 6px;
-          color: var(--esp-ir-muted);
-          font-size: 0.78rem;
-          line-height: 1.45;
-          word-break: break-word;
         }
         .offline-note {
           margin-bottom: 16px;
@@ -621,7 +607,6 @@ class EspIrMqttCard extends HTMLElement {
                 <span class="status-label">${mqttStatusLabel}</span>
                 <span>${mqttStatusText}</span>
               </div>
-              <div class="status-debug">${mqttDebug}</div>
             </div>
           </div>
 
