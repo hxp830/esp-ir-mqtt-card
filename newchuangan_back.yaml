@@ -1,0 +1,607 @@
+esphome:
+  name: newchuangan1
+  on_boot:
+    priority: -100
+    then:
+      - lambda: |-
+          id(mqtt_client).disable();
+          id(mqtt_client).set_broker_address(id(mqtt_host_cfg).state);
+          id(mqtt_client).set_broker_port((uint16_t) id(mqtt_port_cfg).state);
+          id(mqtt_client).set_username(id(mqtt_user_cfg).state);
+          id(mqtt_client).set_password(id(mqtt_pass_cfg).state);
+          id(mqtt_client).set_client_id(id(mqtt_client_id_cfg).state);
+          id(mqtt_client).enable();
+
+esp8266:
+  board: esp12e
+  restore_from_flash: true
+
+preferences:
+  flash_write_interval: 10s
+
+globals:
+  - id: last_learned_pronto
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+  - id: last_learned_at
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+
+# Enable logging
+logger:
+  level: DEBUG
+  logs:
+    remote_transmitter: DEBUG
+
+remote_receiver:
+  pin:
+    number: 14
+    inverted: true
+  dump:
+    - pronto
+    - nec
+    - samsung
+    - rc5
+    - raw
+  on_pronto:
+    then:
+      - if:
+          condition:
+            lambda: |-
+              int spaces = 0;
+              for (char c : x.data) {
+                if (c == ' ') {
+                  spaces++;
+                }
+              }
+              const int pronto_words = spaces + 1;
+              return pronto_words < 12;
+          then:
+            - logger.log:
+                format: "忽略过短的Pronto重复码: %s"
+                args: ["x.data.c_str()"]
+          else:
+            - if:
+                condition:
+                  lambda: |-
+                    const uint32_t now = millis();
+                    const bool same_code = (x.data == id(last_learned_pronto));
+                    const bool too_soon = (now - id(last_learned_at)) < 2000;
+                    return same_code && too_soon;
+                then:
+                  - logger.log:
+                      format: "忽略重复学习的红外码: %s"
+                      args: ["x.data.c_str()"]
+                else:
+                  - lambda: |-
+                      id(last_learned_pronto) = x.data;
+                      id(last_learned_at) = millis();
+                  - logger.log:
+                      format: "学习成功，Pronto: %s"
+                      args: ["x.data.c_str()"]
+                  - mqtt.publish:
+                      topic: newchuangan1/ir/stored/last
+                      payload: !lambda 'return x.data;'
+                      retain: true
+                  - mqtt.publish_json:
+                      topic: newchuangan1/ir/learned
+                      payload: |-
+                        root["status"] = "success";
+                        root["format"] = "pronto";
+                        root["code"] = x.data;
+                        root["stored_topic"] = "newchuangan1/ir/stored/last";
+  on_raw:
+    then:
+      - mqtt.publish_json:
+          topic: newchuangan1/ir/raw
+          payload: |-
+            root["status"] = "captured";
+            root["length"] = x.size();
+
+remote_transmitter:
+  pin: GPIO4  # 使用你实际连接的GPIO引脚
+  carrier_duty_percent: 50
+
+# 传感器配置
+sensor:
+  # WiFi信号强度传感器
+  - platform: wifi_signal
+    name: "WiFi Signal Strength"
+    id: wifi_signal_strength
+    update_interval: 60s
+    unit_of_measurement: "dBm"
+    accuracy_decimals: 0
+
+# 文本传感器配置
+text_sensor:
+  # IP地址文本传感器
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+      id: device_ip
+    ssid:
+      name: "Connected SSID"
+      id: connected_ssid
+    mac_address:
+      name: "MAC Address"
+      id: device_mac
+  - platform: mqtt_subscribe
+    id: stored_last_pronto
+    topic: newchuangan1/ir/stored/last
+    internal: true
+  - platform: mqtt_subscribe
+    id: stored_ir_map
+    topic: newchuangan1/ir/store
+    internal: true
+  - platform: template
+    name: "MQTT Status"
+    id: mqtt_status_text
+    entity_category: diagnostic
+    lambda: |-
+      if (id(mqtt_client).is_connected()) {
+        return {"connected"};
+      }
+      return {"disconnected"};
+    update_interval: 5s
+  - platform: template
+    name: "MQTT Active Broker"
+    id: mqtt_active_broker
+    entity_category: diagnostic
+    lambda: |-
+      return {id(mqtt_host_cfg).state + ":" + to_string((int) id(mqtt_port_cfg).state)};
+    update_interval: 5s
+  - platform: template
+    name: "MQTT Client ID Active"
+    id: mqtt_active_client_id
+    entity_category: diagnostic
+    lambda: |-
+      return {id(mqtt_client_id_cfg).state};
+    update_interval: 5s
+
+text:
+  - platform: template
+    name: "MQTT Broker"
+    id: mqtt_host_cfg
+    entity_category: config
+    mode: text
+    optimistic: true
+    restore_value: true
+    initial_value: "192.168.1.10"
+  - platform: template
+    name: "MQTT Username"
+    id: mqtt_user_cfg
+    entity_category: config
+    mode: text
+    optimistic: true
+    restore_value: true
+    initial_value: ""
+  - platform: template
+    name: "MQTT Password"
+    id: mqtt_pass_cfg
+    entity_category: config
+    mode: password
+    optimistic: true
+    restore_value: true
+    initial_value: ""
+  - platform: template
+    name: "MQTT Client ID"
+    id: mqtt_client_id_cfg
+    entity_category: config
+    mode: text
+    optimistic: true
+    restore_value: true
+    initial_value: "newchuangan1-esp8266"
+
+number:
+  - platform: template
+    name: "MQTT Port"
+    id: mqtt_port_cfg
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: 1883
+    min_value: 1
+    max_value: 65535
+    step: 1
+    mode: box
+
+button:
+  - platform: template
+    name: "Apply MQTT Settings"
+    id: mqtt_apply_button
+    entity_category: config
+    on_press:
+      then:
+        - lambda: |-
+            id(mqtt_client).disable();
+            id(mqtt_client).set_broker_address(id(mqtt_host_cfg).state);
+            id(mqtt_client).set_broker_port((uint16_t) id(mqtt_port_cfg).state);
+            id(mqtt_client).set_username(id(mqtt_user_cfg).state);
+            id(mqtt_client).set_password(id(mqtt_pass_cfg).state);
+            id(mqtt_client).set_client_id(id(mqtt_client_id_cfg).state);
+            id(mqtt_client).enable();
+        - logger.log: "MQTT配置已通过Web页面应用"
+
+mqtt:
+  id: mqtt_client
+  broker: 192.168.1.10
+  port: 1883
+  username: ""
+  password: ""
+  client_id: "newchuangan1-esp8266"
+  topic_prefix: newchuangan1
+  discovery: false
+  log_topic: newchuangan1/debug
+  birth_message:
+    topic: newchuangan1/status
+    payload: online
+  will_message:
+    topic: newchuangan1/status
+    payload: offline
+  on_connect:
+    - logger.log: "MQTT连接成功"
+  on_disconnect:
+    - lambda: |-
+        ESP_LOGW("mqtt_diag", "MQTT断开，reason=%d", (int) reason);
+        if (reason == mqtt::MQTTClientDisconnectReason::MQTT_IDENTIFIER_REJECTED) {
+          ESP_LOGE("mqtt_diag", "Broker拒绝了Client ID，通常是Client ID冲突或格式不被接受");
+        } else if (reason == mqtt::MQTTClientDisconnectReason::MQTT_NOT_AUTHORIZED) {
+          ESP_LOGE("mqtt_diag", "Broker拒绝匿名访问或认证失败");
+        } else if (reason == mqtt::MQTTClientDisconnectReason::MQTT_MALFORMED_CREDENTIALS) {
+          ESP_LOGE("mqtt_diag", "用户名或密码格式不正确");
+        } else if (reason == mqtt::MQTTClientDisconnectReason::MQTT_SERVER_UNAVAILABLE) {
+          ESP_LOGE("mqtt_diag", "Broker当前不可用");
+        } else if (reason == mqtt::MQTTClientDisconnectReason::TCP_DISCONNECTED) {
+          ESP_LOGW("mqtt_diag", "TCP已建立但被对端断开，常见原因是匿名被禁用、ACL拒绝、Client ID冲突");
+        }
+  on_message:
+    - topic: newchuangan1/ir/send/pronto
+      then:
+        - logger.log:
+            format: "收到MQTT红外发射请求: %s"
+            args: ["x.c_str()"]
+        - if:
+            condition:
+              lambda: 'return x.empty();'
+            then:
+              - mqtt.publish_json:
+                  topic: newchuangan1/ir/send_result
+                  payload: |-
+                    root["status"] = "error";
+                    root["message"] = "empty payload";
+            else:
+              - remote_transmitter.transmit_pronto:
+                  data: !lambda 'return x;'
+                  repeat:
+                    times: 1
+                    wait_time: 100ms
+              - mqtt.publish_json:
+                  topic: newchuangan1/ir/send_result
+                  payload: |-
+                    root["status"] = "success";
+                    root["format"] = "pronto";
+                    root["code"] = x;
+    - topic: newchuangan1/ir/send/last
+      then:
+        - if:
+            condition:
+              lambda: 'return !id(stored_last_pronto).state.empty();'
+            then:
+              - logger.log:
+                  format: "发送已记住的最后一条红外码: %s"
+                  args: ["id(stored_last_pronto).state.c_str()"]
+              - remote_transmitter.transmit_pronto:
+                  data: !lambda 'return id(stored_last_pronto).state;'
+                  repeat:
+                    times: 1
+                    wait_time: 100ms
+              - mqtt.publish_json:
+                  topic: newchuangan1/ir/send_result
+                  payload: |-
+                    root["status"] = "success";
+                    root["format"] = "pronto";
+                    root["source"] = "stored_last";
+                    root["code"] = id(stored_last_pronto).state;
+            else:
+              - mqtt.publish_json:
+                  topic: newchuangan1/ir/send_result
+                  payload: |-
+                    root["status"] = "error";
+                    root["message"] = "no stored code";
+    - topic: newchuangan1/ir/save_as
+      then:
+        - if:
+            condition:
+              lambda: 'return x.empty();'
+            then:
+              - mqtt.publish_json:
+                  topic: newchuangan1/ir/save_result
+                  payload: |-
+                    root["status"] = "error";
+                    root["message"] = "empty key name";
+            else:
+              - if:
+                  condition:
+                    lambda: 'return id(last_learned_pronto).empty();'
+                  then:
+                    - mqtt.publish_json:
+                        topic: newchuangan1/ir/save_result
+                        payload: |-
+                          root["status"] = "error";
+                          root["message"] = "no learned code yet";
+                  else:
+                    - mqtt.publish:
+                        topic: newchuangan1/ir/store
+                        retain: true
+                        payload: !lambda |-
+                          DynamicJsonDocument doc(8192);
+                          if (!id(stored_ir_map).state.empty()) {
+                            deserializeJson(doc, id(stored_ir_map).state);
+                          }
+                          doc[x] = id(last_learned_pronto);
+                          std::string output;
+                          serializeJson(doc, output);
+                          return output;
+                    - mqtt.publish_json:
+                        topic: newchuangan1/ir/save_result
+                        payload: |-
+                          root["status"] = "success";
+                          root["key"] = x;
+                          root["code"] = id(last_learned_pronto);
+                          root["store_topic"] = "newchuangan1/ir/store";
+    - topic: newchuangan1/ir/send/named
+      then:
+        - if:
+            condition:
+              lambda: 'return x.empty();'
+            then:
+              - mqtt.publish_json:
+                  topic: newchuangan1/ir/send_result
+                  payload: |-
+                    root["status"] = "error";
+                    root["message"] = "empty key name";
+            else:
+              - if:
+                  condition:
+                    lambda: 'return id(stored_ir_map).state.empty();'
+                  then:
+                    - mqtt.publish_json:
+                        topic: newchuangan1/ir/send_result
+                        payload: |-
+                          root["status"] = "error";
+                          root["message"] = "ir store is empty";
+                  else:
+                    - if:
+                        condition:
+                          lambda: |-
+                            DynamicJsonDocument doc(8192);
+                            auto err = deserializeJson(doc, id(stored_ir_map).state);
+                            if (err) {
+                              return false;
+                            }
+                            return doc.containsKey(x.c_str());
+                        then:
+                          - remote_transmitter.transmit_pronto:
+                              data: !lambda |-
+                                DynamicJsonDocument doc(8192);
+                                deserializeJson(doc, id(stored_ir_map).state);
+                                return std::string(doc[x.c_str()].as<const char *>());
+                              repeat:
+                                times: 1
+                                wait_time: 100ms
+                          - mqtt.publish_json:
+                              topic: newchuangan1/ir/send_result
+                              payload: !lambda |-
+                                DynamicJsonDocument doc(8192);
+                                deserializeJson(doc, id(stored_ir_map).state);
+                                root["status"] = "success";
+                                root["format"] = "pronto";
+                                root["source"] = "named_store";
+                                root["key"] = x;
+                                root["code"] = doc[x.c_str()].as<const char *>();
+                        else:
+                          - mqtt.publish_json:
+                              topic: newchuangan1/ir/send_result
+                              payload: |-
+                                root["status"] = "error";
+                                root["message"] = "key not found";
+                                root["key"] = x;
+    - topic: newchuangan1/ir/list
+      then:
+        - mqtt.publish:
+            topic: newchuangan1/ir/list_result
+            payload: !lambda |-
+              return id(stored_ir_map).state;
+            retain: false
+    - topic: newchuangan1/ir/list_keys
+      then:
+        - if:
+            condition:
+              lambda: 'return id(stored_ir_map).state.empty();'
+            then:
+              - mqtt.publish_json:
+                  topic: newchuangan1/ir/list_keys_result
+                  payload: |-
+                    root["status"] = "empty";
+                    root["keys"] = "";
+            else:
+              - mqtt.publish_json:
+                  topic: newchuangan1/ir/list_keys_result
+                  payload: !lambda |-
+                    DynamicJsonDocument doc(8192);
+                    auto err = deserializeJson(doc, id(stored_ir_map).state);
+                    if (err) {
+                      root["status"] = "error";
+                      root["message"] = "invalid store json";
+                      return;
+                    }
+                    std::string keys;
+                    bool first = true;
+                    for (JsonPair kv : doc.as<JsonObject>()) {
+                      if (!first) {
+                        keys += ",";
+                      }
+                      keys += kv.key().c_str();
+                      first = false;
+                    }
+                    root["status"] = "success";
+                    root["keys"] = keys;
+    - topic: newchuangan1/ir/delete
+      then:
+        - if:
+            condition:
+              lambda: 'return x.empty();'
+            then:
+              - mqtt.publish_json:
+                  topic: newchuangan1/ir/delete_result
+                  payload: |-
+                    root["status"] = "error";
+                    root["message"] = "empty key name";
+            else:
+              - if:
+                  condition:
+                    lambda: 'return id(stored_ir_map).state.empty();'
+                  then:
+                    - mqtt.publish_json:
+                        topic: newchuangan1/ir/delete_result
+                        payload: |-
+                          root["status"] = "error";
+                          root["message"] = "ir store is empty";
+                          root["key"] = x;
+                  else:
+                    - if:
+                        condition:
+                          lambda: |-
+                            DynamicJsonDocument doc(8192);
+                            auto err = deserializeJson(doc, id(stored_ir_map).state);
+                            if (err) {
+                              return false;
+                            }
+                            return doc.containsKey(x.c_str());
+                        then:
+                          - mqtt.publish:
+                              topic: newchuangan1/ir/store
+                              retain: true
+                              payload: !lambda |-
+                                DynamicJsonDocument doc(8192);
+                                deserializeJson(doc, id(stored_ir_map).state);
+                                doc.remove(x.c_str());
+                                std::string output;
+                                serializeJson(doc, output);
+                                return output;
+                          - mqtt.publish_json:
+                              topic: newchuangan1/ir/delete_result
+                              payload: |-
+                                root["status"] = "success";
+                                root["key"] = x;
+                        else:
+                          - mqtt.publish_json:
+                              topic: newchuangan1/ir/delete_result
+                              payload: |-
+                                root["status"] = "error";
+                                root["message"] = "key not found";
+                                root["key"] = x;
+
+# API 配置 - Home Assistant集成必需
+api:
+  reboot_timeout: 0s
+  services:
+    # 通用红外发送服务 - 支持多种格式
+    - service: send_ir_code
+      variables:
+        code: string
+      then:
+        - logger.log:
+            format: "HA发送IR代码: %s"
+            args: ["code.c_str()"]
+        - delay: 50ms
+        - if:
+            condition:
+              lambda: 'return code.empty();'
+            then:
+              - logger.log: "错误：IR代码为空"
+            else:
+              - remote_transmitter.transmit_pronto:
+                  data: !lambda 'return code;'
+                  repeat:
+                    times: 1
+                    wait_time: 100ms
+              - logger.log: "IR代码发送完成"
+    
+    # Samsung协议服务
+    - service: send_samsung
+      variables:
+        data: int
+        nbits: int
+      then:
+        - logger.log:
+            format: "HA发送Samsung: 0x%08X, bits: %d"
+            args: ["data", "nbits"]
+        - remote_transmitter.transmit_samsung:
+            data: !lambda 'return data;'
+            nbits: !lambda 'return nbits;'
+    
+    # NEC协议服务
+    - service: send_nec
+      variables:
+        address: int
+        command: int
+      then:
+        - logger.log:
+            format: "HA发送NEC: addr=0x%04X, cmd=0x%04X"
+            args: ["address", "command"]
+        - remote_transmitter.transmit_nec:
+            address: !lambda 'return address;'
+            command: !lambda 'return command;'
+    
+    # RC5协议服务
+    - service: send_rc5
+      variables:
+        address: int
+        command: int
+      then:
+        - logger.log:
+            format: "HA发送RC5: addr=%d, cmd=%d"
+            args: ["address", "command"]
+        - remote_transmitter.transmit_rc5:
+            address: !lambda 'return address;'
+            command: !lambda 'return command;'
+    
+    # Raw数据服务
+    - service: send_raw
+      variables:
+        code: int[]
+      then:
+        - logger.log: "HA发送Raw数据"
+        - remote_transmitter.transmit_raw:
+            code: !lambda 'return code;'
+
+
+
+
+
+
+
+
+
+
+
+ota:
+  - platform: esphome
+    password: "0824f9d3785a65969ca565a0c689b878"
+    
+    
+web_server:
+  port: 80
+
+wifi:
+  ssid: "FangLi"
+  password: "1234AbcD!!!"
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "RemoteControl1"    
+
+captive_portal:
