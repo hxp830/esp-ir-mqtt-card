@@ -10,7 +10,7 @@ class EspIrMqttCard extends HTMLElement {
       sendingNamed: "Sending {name}",
       deletedNamed: "Deleted {name}",
       sendingLast: "Sending the most recently learned code",
-      badge: "Store entity: {entity} | State: {state}",
+      badge: "State: {state}",
       placeholder: "Enter a key name, e.g. AC Power or ac_power_on",
       saveCurrent: "Save Current Learned Code",
       sendLast: "Send Last Learned Code",
@@ -24,7 +24,14 @@ class EspIrMqttCard extends HTMLElement {
       mqttStatus: "MQTT:",
       connected: "Connected",
       disconnected: "Disconnected",
-      stateRaw: "Raw state: {value}",
+      mqttOfflineNotice: "MQTT is disconnected. All controls are disabled until the connection is restored.",
+      editorTitle: "Title",
+      editorStoreEntity: "Store entity",
+      editorMqttStatusEntity: "MQTT status entity",
+      editorTopicPrefix: "Topic prefix",
+      editorColumns: "Columns",
+      editorDefaultName: "Default key name",
+      editorLanguage: "Language",
     },
     zh: {
       title: "红外按键面板",
@@ -36,7 +43,7 @@ class EspIrMqttCard extends HTMLElement {
       sendingNamed: "正在发送 {name}",
       deletedNamed: "已删除 {name}",
       sendingLast: "正在发送最近学习结果",
-      badge: "存储实体：{entity} | 当前状态：{state}",
+      badge: "当前状态：{state}",
       placeholder: "输入按键名称，例如 空调打开 或 ac_power_on",
       saveCurrent: "一键保存当前学习结果",
       sendLast: "发送最近学习结果",
@@ -50,7 +57,14 @@ class EspIrMqttCard extends HTMLElement {
       mqttStatus: "MQTT：",
       connected: "连接",
       disconnected: "未连接",
-      stateRaw: "原始状态：{value}",
+      mqttOfflineNotice: "MQTT 未连接，下面的输入框和按钮已禁用，连接恢复后才可使用。",
+      editorTitle: "标题",
+      editorStoreEntity: "存储实体",
+      editorMqttStatusEntity: "MQTT 状态实体",
+      editorTopicPrefix: "主题前缀",
+      editorColumns: "列数",
+      editorDefaultName: "默认按键名",
+      editorLanguage: "语言",
     },
     ru: {
       title: "Панель ИК-кнопок",
@@ -62,7 +76,7 @@ class EspIrMqttCard extends HTMLElement {
       sendingNamed: "Отправка {name}",
       deletedNamed: "Удалено {name}",
       sendingLast: "Отправка последнего изученного кода",
-      badge: "Сущность хранилища: {entity} | Состояние: {state}",
+      badge: "Состояние: {state}",
       placeholder: "Введите имя кнопки, например AC Power или ac_power_on",
       saveCurrent: "Сохранить текущий код",
       sendLast: "Отправить последний код",
@@ -76,7 +90,14 @@ class EspIrMqttCard extends HTMLElement {
       mqttStatus: "MQTT:",
       connected: "Подключено",
       disconnected: "Не подключено",
-      stateRaw: "Исходное состояние: {value}",
+      mqttOfflineNotice: "MQTT отключен. Все элементы управления заблокированы до восстановления подключения.",
+      editorTitle: "Заголовок",
+      editorStoreEntity: "Сущность хранилища",
+      editorMqttStatusEntity: "Сущность статуса MQTT",
+      editorTopicPrefix: "Префикс topic",
+      editorColumns: "Колонки",
+      editorDefaultName: "Имя кнопки по умолчанию",
+      editorLanguage: "Язык",
     },
   };
 
@@ -257,6 +278,9 @@ class EspIrMqttCard extends HTMLElement {
   }
 
   _saveCurrent() {
+    if (this._getMqttStatusInfo().connectionState !== "connected") {
+      return;
+    }
     const input = this.shadowRoot?.getElementById("save-name");
     const value = input?.value?.trim();
     if (!value) {
@@ -269,11 +293,17 @@ class EspIrMqttCard extends HTMLElement {
   }
 
   _sendNamed(name) {
+    if (this._getMqttStatusInfo().connectionState !== "connected") {
+      return;
+    }
     this._publish(`${this._config.topic_prefix}/send/named`, name);
     this._toast(this._t("sendingNamed", { name }));
   }
 
   _deleteNamed(name) {
+    if (this._getMqttStatusInfo().connectionState !== "connected") {
+      return;
+    }
     this._publish(`${this._config.topic_prefix}/delete`, name);
     this._pendingDelete = null;
     this._toast(this._t("deletedNamed", { name }));
@@ -281,6 +311,9 @@ class EspIrMqttCard extends HTMLElement {
   }
 
   _sendLast() {
+    if (this._getMqttStatusInfo().connectionState !== "connected") {
+      return;
+    }
     this._publish(`${this._config.topic_prefix}/send/last`, "1");
     this._toast(this._t("sendingLast"));
   }
@@ -308,11 +341,12 @@ class EspIrMqttCard extends HTMLElement {
     const sendNamedTopic = `${this._config.topic_prefix}/send/named`;
     const title = this._config.title || this._t("title");
     const subtitle = this._t("subtitle");
-    const badge = this._t("badge", { entity: this._config.store_entity, state: entityState });
+    const badge = this._t("badge", { state: entityState });
     const mqttStatus = this._getMqttStatusInfo();
+    const mqttConnected = mqttStatus.connectionState === "connected";
     const mqttStatusText = this._t(mqttStatus.connectionState);
     const mqttStatusLabel = this._t("mqttStatus");
-    const mqttStatusRaw = this._t("stateRaw", { value: mqttStatus.rawState });
+    const mqttOfflineNotice = this._t("mqttOfflineNotice");
     const placeholder = this._t("placeholder");
     const saveCurrent = this._t("saveCurrent");
     const sendLast = this._t("sendLast");
@@ -410,12 +444,15 @@ class EspIrMqttCard extends HTMLElement {
           color: var(--esp-ir-muted);
           font-weight: 500;
         }
-        .status-raw {
-          width: 100%;
+        .offline-note {
+          margin-bottom: 16px;
+          padding: 12px 14px;
+          border-radius: 16px;
+          background: rgba(156, 163, 175, 0.12);
+          border: 1px solid rgba(156, 163, 175, 0.24);
           color: var(--esp-ir-muted);
-          font-size: 0.78rem;
-          font-weight: 500;
-          margin-left: 18px;
+          font-size: 0.88rem;
+          line-height: 1.5;
         }
         .controls {
           display: grid;
@@ -458,6 +495,15 @@ class EspIrMqttCard extends HTMLElement {
         }
         button:hover {
           transform: translateY(-1px);
+        }
+        button:disabled,
+        input:disabled {
+          cursor: not-allowed;
+          opacity: 0.5;
+          transform: none;
+        }
+        button:disabled:hover {
+          transform: none;
         }
         .primary {
           background: var(--esp-ir-accent);
@@ -560,21 +606,26 @@ class EspIrMqttCard extends HTMLElement {
                 <span class="status-dot ${mqttStatus.connectionState}"></span>
                 <span class="status-label">${mqttStatusLabel}</span>
                 <span>${mqttStatusText}</span>
-                <span class="status-raw">${mqttStatusRaw}</span>
               </div>
             </div>
           </div>
 
           <div class="controls">
-            <input id="save-name" value="${exampleName}" placeholder="${placeholder}" />
-            <button class="primary" id="save-btn">${saveCurrent}</button>
-            <button class="secondary" id="send-last-btn">${sendLast}</button>
+            <input id="save-name" value="${exampleName}" placeholder="${placeholder}" ${mqttConnected ? "" : "disabled"} />
+            <button class="primary" id="save-btn" ${mqttConnected ? "" : "disabled"}>${saveCurrent}</button>
+            <button class="secondary" id="send-last-btn" ${mqttConnected ? "" : "disabled"}>${sendLast}</button>
           </div>
 
           ${
             !stateObj
               ? `<div class="error">${unavailable}</div>`
               : ""
+          }
+
+          ${
+            mqttConnected
+              ? ""
+              : `<div class="offline-note">${mqttOfflineNotice}</div>`
           }
 
           <div class="keys">
@@ -591,11 +642,11 @@ class EspIrMqttCard extends HTMLElement {
                             ${sendPayload}<code>${key}</code>
                           </div>
                           <div class="key-actions">
-                            <button class="primary send-btn" data-key="${key}">${send}</button>
+                            <button class="primary send-btn" data-key="${key}" ${mqttConnected ? "" : "disabled"}>${send}</button>
                             ${
                               confirming
-                                ? `<button class="confirm delete-confirm-btn" data-key="${key}">${confirmDelete}</button>`
-                                : `<button class="delete delete-btn" data-key="${key}">${deleteLabel}</button>`
+                                ? `<button class="confirm delete-confirm-btn" data-key="${key}" ${mqttConnected ? "" : "disabled"}>${confirmDelete}</button>`
+                                : `<button class="delete delete-btn" data-key="${key}" ${mqttConnected ? "" : "disabled"}>${deleteLabel}</button>`
                             }
                           </div>
                         </div>
@@ -616,6 +667,9 @@ class EspIrMqttCard extends HTMLElement {
     });
     this.shadowRoot.querySelectorAll(".delete-btn").forEach((button) => {
       button.addEventListener("click", (ev) => {
+        if (!mqttConnected) {
+          return;
+        }
         this._pendingDelete = ev.currentTarget.dataset.key;
         this._render();
       });
@@ -627,8 +681,144 @@ class EspIrMqttCard extends HTMLElement {
 }
 
 class EspIrMqttCardEditor extends HTMLElement {
+  static TRANSLATIONS = EspIrMqttCard.TRANSLATIONS;
+
   setConfig(config) {
     this._config = config;
+    if (!this.shadowRoot) {
+      this.attachShadow({ mode: "open" });
+    }
+    this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._render();
+  }
+
+  _resolveLanguage(lang) {
+    const normalized = (lang || "").toLowerCase();
+    if (normalized.startsWith("zh")) return "zh";
+    if (normalized.startsWith("ru")) return "ru";
+    if (normalized.startsWith("en")) return "en";
+    const hassLang = (this._hass?.language || this._hass?.locale?.language || "").toLowerCase();
+    if (hassLang.startsWith("zh")) return "zh";
+    if (hassLang.startsWith("ru")) return "ru";
+    return "en";
+  }
+
+  _t(key) {
+    const language = this._resolveLanguage(this._config?.language);
+    const pack = EspIrMqttCardEditor.TRANSLATIONS[language] || EspIrMqttCardEditor.TRANSLATIONS.en;
+    return pack[key] || EspIrMqttCardEditor.TRANSLATIONS.en[key] || key;
+  }
+
+  _valueChanged(ev) {
+    const target = ev.target;
+    const key = target.getAttribute("configValue");
+    if (!key) {
+      return;
+    }
+
+    const nextConfig = { ...this._config };
+    const value = target.type === "number" ? Number(target.value) : target.value;
+
+    if (target.value === "") {
+      delete nextConfig[key];
+    } else {
+      nextConfig[key] = value;
+    }
+
+    this._config = nextConfig;
+    this.dispatchEvent(new CustomEvent("config-changed", {
+      detail: { config: nextConfig },
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
+  _render() {
+    if (!this.shadowRoot || !this._config) {
+      return;
+    }
+
+    const config = {
+      columns: 3,
+      default_example_name: "test_ir",
+      mqtt_status_entity: "binary_sensor.esp_ir_device_online",
+      ...this._config,
+    };
+
+    this.shadowRoot.innerHTML = `
+      <style>
+        :host {
+          display: block;
+        }
+        .form {
+          display: grid;
+          gap: 12px;
+        }
+        .field {
+          display: grid;
+          gap: 6px;
+        }
+        label {
+          font-size: 0.85rem;
+          color: var(--secondary-text-color);
+          font-weight: 600;
+        }
+        input,
+        select {
+          width: 100%;
+          box-sizing: border-box;
+          padding: 10px 12px;
+          border: 1px solid var(--divider-color);
+          border-radius: 10px;
+          background: var(--card-background-color);
+          color: var(--primary-text-color);
+          font: inherit;
+        }
+      </style>
+      <div class="form">
+        <div class="field">
+          <label>${this._t("editorTitle")}</label>
+          <input value="${config.title || ""}" configValue="title" />
+        </div>
+        <div class="field">
+          <label>${this._t("editorStoreEntity")}</label>
+          <input value="${config.store_entity || ""}" configValue="store_entity" />
+        </div>
+        <div class="field">
+          <label>${this._t("editorMqttStatusEntity")}</label>
+          <input value="${config.mqtt_status_entity || ""}" configValue="mqtt_status_entity" />
+        </div>
+        <div class="field">
+          <label>${this._t("editorTopicPrefix")}</label>
+          <input value="${config.topic_prefix || ""}" configValue="topic_prefix" />
+        </div>
+        <div class="field">
+          <label>${this._t("editorColumns")}</label>
+          <input type="number" min="1" max="6" value="${config.columns || 3}" configValue="columns" />
+        </div>
+        <div class="field">
+          <label>${this._t("editorDefaultName")}</label>
+          <input value="${config.default_example_name || ""}" configValue="default_example_name" />
+        </div>
+        <div class="field">
+          <label>${this._t("editorLanguage")}</label>
+          <select configValue="language">
+            <option value="zh" ${config.language === "zh" ? "selected" : ""}>中文</option>
+            <option value="en" ${config.language === "en" ? "selected" : ""}>English</option>
+            <option value="ru" ${config.language === "ru" ? "selected" : ""}>Русский</option>
+          </select>
+        </div>
+      </div>
+    `;
+
+    this.shadowRoot.querySelectorAll("input, select").forEach((field) => {
+      field.addEventListener("change", (ev) => this._valueChanged(ev));
+      field.addEventListener("input", (ev) => this._valueChanged(ev));
+    });
   }
 }
 
