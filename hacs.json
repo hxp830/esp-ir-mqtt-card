@@ -1,7 +1,7 @@
 {
-  "name": "ESP IR MQTT Card",
+  "name": "ESP IR MQTT Pure Card",
   "content_in_root": true,
   "render_readme": true,
-  "filename": "esp-ir-mqtt-card.js",
+  "filename": "esp-ir-mqtt-pure-card.js",
   "type": "frontend"
 }

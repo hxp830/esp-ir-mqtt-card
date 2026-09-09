@@ -16,7 +16,10 @@ mqtt:
 
 template:
   - binary_sensor:
+      # 注意：这里使用 text_sensor 而不是 sensor
       - name: ESP IR MQTT Online
         unique_id: esp_ir_mqtt_online
         state: >
-          {{ states('sensor.newchuangan1_mqtt_status') in ['connected', 'online', 'on', 'true', '连接', '已连接', '在线'] }}
+          {{ states('text_sensor.newchuangan1_mqtt_status') in ['connected', 'online', 'on', 'true', '连接', '已连接', '在线'] }}
+        availability: >
+          {{ states('text_sensor.newchuangan1_mqtt_status') not in ['unavailable', 'unknown'] }}

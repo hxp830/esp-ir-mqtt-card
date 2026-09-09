@@ -20,6 +20,14 @@ preferences:
   flash_write_interval: 10s
 
 globals:
+  - id: max_ir_store_bytes
+    type: size_t
+    restore_value: no
+    initial_value: '4096'
+  - id: max_ir_store_keys
+    type: uint8_t
+    restore_value: no
+    initial_value: '20'
   - id: last_learned_pronto
     type: std::string
     restore_value: no
@@ -31,9 +39,9 @@ globals:
 
 # Enable logging
 logger:
-  level: DEBUG
+  level: INFO
   logs:
-    remote_transmitter: DEBUG
+    remote_transmitter: WARN
 
 remote_receiver:
   pin:
@@ -41,10 +49,6 @@ remote_receiver:
     inverted: true
   dump:
     - pronto
-    - nec
-    - samsung
-    - rc5
-    - raw
   on_pronto:
     then:
       - if:
@@ -232,22 +236,32 @@ button:
 
 mqtt:
   id: mqtt_client
-  broker: 192.168.1.10
-  port: 1883
-  username: ""
-  password: ""
+  broker: !secret mqtt_broker
+  port: !secret mqtt_port
+  username: !secret mqtt_username
+  password: !secret mqtt_password
   client_id: "newchuangan1-esp8266"
   topic_prefix: newchuangan1
-  discovery: false
+  discovery: true
+  discovery_retain: true
+  discovery_prefix: homeassistant
   log_topic: newchuangan1/debug
   birth_message:
-    topic: newchuangan1/status
-    payload: online
+    topic: newchuangan1/ir/status
+    payload: "online"
+    retain: true
   will_message:
-    topic: newchuangan1/status
-    payload: offline
+    topic: newchuangan1/ir/status
+    payload: "offline"
+    retain: true
   on_connect:
     - logger.log: "MQTT连接成功"
+    - delay: 500ms
+    - mqtt.publish:
+        topic: newchuangan1/ir/status
+        payload: "online"
+        retain: true
+        qos: 1
   on_disconnect:
     - lambda: |-
         ESP_LOGW("mqtt_diag", "MQTT断开，reason=%d", (int) reason);
@@ -342,11 +356,14 @@ mqtt:
                         topic: newchuangan1/ir/store
                         retain: true
                         payload: !lambda |-
-                          DynamicJsonDocument doc(8192);
+                          if (id(last_learned_pronto).size() > 1800 || x.size() > 32) return "";
+                          DynamicJsonDocument doc(4096);
                           if (!id(stored_ir_map).state.empty()) {
-                            deserializeJson(doc, id(stored_ir_map).state);
+                            if (deserializeJson(doc, id(stored_ir_map).state)) return "";
                           }
+                          if (!doc.containsKey(x.c_str()) && doc.size() >= id(max_ir_store_keys)) return "";
                           doc[x] = id(last_learned_pronto);
+                          if (doc.overflowed() || measureJson(doc) > id(max_ir_store_bytes)) return "";
                           std::string output;
                           serializeJson(doc, output);
                           return output;
@@ -382,7 +399,7 @@ mqtt:
                     - if:
                         condition:
                           lambda: |-
-                            DynamicJsonDocument doc(8192);
+                            DynamicJsonDocument doc(4096);
                             auto err = deserializeJson(doc, id(stored_ir_map).state);
                             if (err) {
                               return false;
@@ -391,7 +408,7 @@ mqtt:
                         then:
                           - remote_transmitter.transmit_pronto:
                               data: !lambda |-
-                                DynamicJsonDocument doc(8192);
+                                DynamicJsonDocument doc(4096);
                                 deserializeJson(doc, id(stored_ir_map).state);
                                 return std::string(doc[x.c_str()].as<const char *>());
                               repeat:
@@ -400,7 +417,7 @@ mqtt:
                           - mqtt.publish_json:
                               topic: newchuangan1/ir/send_result
                               payload: !lambda |-
-                                DynamicJsonDocument doc(8192);
+                                DynamicJsonDocument doc(4096);
                                 deserializeJson(doc, id(stored_ir_map).state);
                                 root["status"] = "success";
                                 root["format"] = "pronto";
@@ -436,7 +453,7 @@ mqtt:
               - mqtt.publish_json:
                   topic: newchuangan1/ir/list_keys_result
                   payload: !lambda |-
-                    DynamicJsonDocument doc(8192);
+                    DynamicJsonDocument doc(4096);
                     auto err = deserializeJson(doc, id(stored_ir_map).state);
                     if (err) {
                       root["status"] = "error";
@@ -480,7 +497,7 @@ mqtt:
                     - if:
                         condition:
                           lambda: |-
-                            DynamicJsonDocument doc(8192);
+                            DynamicJsonDocument doc(4096);
                             auto err = deserializeJson(doc, id(stored_ir_map).state);
                             if (err) {
                               return false;
@@ -491,8 +508,8 @@ mqtt:
                               topic: newchuangan1/ir/store
                               retain: true
                               payload: !lambda |-
-                                DynamicJsonDocument doc(8192);
-                                deserializeJson(doc, id(stored_ir_map).state);
+                                DynamicJsonDocument doc(4096);
+                                if (deserializeJson(doc, id(stored_ir_map).state)) return "{}";
                                 doc.remove(x.c_str());
                                 std::string output;
                                 serializeJson(doc, output);
@@ -512,7 +529,7 @@ mqtt:
 
 # API 配置 - Home Assistant集成必需
 api:
-  reboot_timeout: 0s
+  reboot_timeout: 15min
   services:
     # 通用红外发送服务 - 支持多种格式
     - service: send_ir_code
@@ -596,18 +613,20 @@ api:
 
 ota:
   - platform: esphome
-    password: "0824f9d3785a65969ca565a0c689b878"
+    password: !secret ota_password
     
     
 web_server:
   port: 80
 
 wifi:
-  ssid: "FangLi"
-  password: "1234AbcD!!!"
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
 
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
-    ssid: "RemoteControl1"    
+    ssid: "Newchuangan1 Fallback"
+    password: !secret fallback_ap_password
 
 captive_portal:
+
