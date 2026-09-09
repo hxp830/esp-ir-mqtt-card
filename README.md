@@ -25,9 +25,9 @@
 2. 点击右上角菜单 > **自定义存储库**
 3. 添加仓库 URL：
    ```
-   https://github.com/hxp830/esp-ir-mqtt-pure-card
+   https://github.com/hxp830/esp-ir-mqtt-card
    ```
-4. 类别选择：**Lovelace**
+4. 类型选择：**Dashboard**
 5. 点击 **添加**
 6. 在 HACS 中搜索 "ESP IR MQTT Pure"
 7. 点击 **安装**
@@ -164,9 +164,9 @@ MIT License
 2. Click menu > **Custom repositories**
 3. Add repository URL:
    ```
-   https://github.com/hxp830/esp-ir-mqtt-pure-card
+   https://github.com/hxp830/esp-ir-mqtt-card
    ```
-4. Category: **Lovelace**
+4. Type: **Dashboard**
 5. Click **Add**
 6. Search for "ESP IR MQTT Pure" in HACS
 7. Click **Install**
